@@ -2,7 +2,7 @@
 
 **A calmer home screen. A more personal TV.**
 
-Quiet TV is a customizable Fire TV launcher built to clear away the clutter of a traditional smart TV home screen. It puts the apps and information you choose front and center, without rows of ads, promotions, unwanted app shortcuts, and recommendation feeds competing for your attention.
+Quiet TV is a lightweight, customizable Fire TV launcher built to clear away the clutter of a traditional smart TV home screen. Designed with lower-powered TVs in mind, it keeps navigation simple and the interface lean, putting your chosen apps and information front and center—without rows of ads, promotions, unwanted app shortcuts, and recommendation feeds competing for your attention.
 
 ![Quiet TV shared-version home screen with optional CS widget off](docs/images/public-home.png)
 
