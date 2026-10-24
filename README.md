@@ -58,7 +58,7 @@ These are captures from the TV. Sunrise and sunset use the app's built-in sky pr
 
 ## Optional Counter-Strike widget
 
-Counter-Strike is **off by default and absent from first-time setup**. Enable it later in **Settings → Widgets → Counter-Strike (optional)**. Its feed is not created or polled while disabled. When enabled, compact cards show notable live matches, series scores, and a route to the verified organizer broadcast. Upcoming matches lists today's notable scheduled matches in local time. Today's results keeps completed matches visible until local midnight, including eligible matches missed while the TV was off.
+Counter-Strike is **off by default and absent from first-time setup**. Enable it later in **Settings → Widgets → Counter-Strike (optional)**. Its feed is not created or polled while disabled. When enabled, compact cards show notable live matches, series scores, and a route to the verified organizer broadcast. Upcoming Matches browses today and the following six days in local time. Use Left/Right to change the day, Up/Down to scroll matches, and Menu to refresh. The home-screen NEXT TODAY suggestion stays limited to today. Today's results keeps completed matches visible until local midnight, including eligible matches missed while the TV was off.
 
 <details>
 <summary>See the optional match-results view</summary>

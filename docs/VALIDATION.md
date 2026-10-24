@@ -27,3 +27,10 @@ This repository begins with a fresh history. It contains no older development sc
 - BO3's interface is undocumented and may require maintenance after source changes.
 - Govee scenes are model-specific, and general lighting onboarding is unfinished.
 - The optional device-specific DIRECTV shortcut companion is not distributed. Night mode remains available in Settings.
+
+
+## Seven-day upcoming navigation
+
+35 deterministic upcoming-day checks and the 14 existing NEXT TODAY checks passed on the TV runtime for both source variants. Five additional shared-zone checks cover spring/fall day lengths, seven-day horizons, and date navigation. They verify day separation, Tuesday browsing from Saturday, empty days, navigation bounds, start/midnight/month/year boundaries, cache migration and expiry, timezone invalidation, prominence filtering, retention limits, pagination, and source failure handling. The home suggestion remains today-only. Both app variants build successfully. See tests/CsScheduleDaysChecks.java and tests/CsScheduleZoneChecks.java.
+
+On the TV, verified Tomorrow and Tuesday listings with real provider matches, scrolling to a fifth row, full-date match details, Back retaining Tuesday and the selected match, and first/last-day bounds with the appropriate day button disabled. Menu refreshed the schedule without opening launcher settings. The update was installed without clearing application data, and the previous APK/source were saved for rollback. Device test captures remain local; no additional personal screenshots were added to the showcase.
