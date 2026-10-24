@@ -1,0 +1,16 @@
+{
+  "provider": "BO3",
+  "max_cards": 2,
+  "refresh_seconds": 120,
+  "live_expiry_seconds": 180,
+  "schedule_cache_seconds": 1800,
+  "max_live_duration_hours": 12,
+  "top_tier_rank": 1,
+  "secondary_tier_rank": 2,
+  "secondary_min_prize": 100000,
+  "unknown_tier_min_prize": 200000,
+  "prominent_names": "\\b(major|iem|intel extreme masters|esl|blast|pgl|dreamhack|esports world cup|e?wc|starseries|elisa masters|cs asia championships|thunderpick world championship|betboom dacha)\\b",
+  "exclude_names": "qualifier|qualification|academy|junior|youth|cash cup|open cup|\\bu[- ]?21\\b",
+  "include_event_ids": [],
+  "exclude_event_ids": []
+}

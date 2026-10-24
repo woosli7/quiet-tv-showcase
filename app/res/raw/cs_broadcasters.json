@@ -1,0 +1,23 @@
+{
+  "profiles": [
+    {
+      "event_pattern": "\\bpgl\\b",
+      "twitch": ["pgl", "pgl_cs2"],
+      "kick": ["pgl", "pglcs2"],
+      "youtube": ["@pgl"],
+      "sources": ["https://www.pglesports.com/", "https://blast.tv/cs/tournaments/pgl-masters-bucharest-2026"]
+    },
+    {
+      "event_pattern": "\\b(esl|iem|intel extreme masters)\\b",
+      "twitch": ["eslcs", "eslcsb", "eslcsc", "eslcsd", "eslcse", "eslcsf"],
+      "youtube": ["@eslcs", "@eslcsb"],
+      "sources": ["https://esl.com/watch/", "https://esl.com/article/find-all-esl-live-streams-on-twitch-and-youtube/", "https://pro.eslgaming.com/csgo/impact/2025/10/season-8-finals/"]
+    },
+    {
+      "event_pattern": "\\bblast\\b",
+      "twitch": ["blastpremier"],
+      "youtube": ["@blastpremier"],
+      "sources": ["https://blast.tv/cs/tournaments/rivals-2026-season-2"]
+    }
+  ]
+}
