@@ -14,7 +14,7 @@ final class MenuStyle {
         GradientDrawable drawable=new GradientDrawable();drawable.setColor(fill);drawable.setCornerRadius(dp(view,radius));
         if(stroke!=0)drawable.setStroke(dp(view,1),stroke);return drawable;
     }
-    static ColorStateList colors(){return new ColorStateList(new int[][]{{-android.R.attr.state_enabled},{android.R.attr.state_focused},{android.R.attr.state_selected},{}},new int[]{0xff526071,0xffffd1a4,0xffffd1a4,TEXT});}
+    static ColorStateList colors(){return new ColorStateList(new int[][]{{-android.R.attr.state_enabled},{android.R.attr.state_focused},{android.R.attr.state_selected},{}},new int[]{0xff526071,0xfff0a050,0xfff0a050,TEXT});}
     static void text(TextView text){
         text.setTypeface(Typeface.create("monospace",Typeface.NORMAL));text.setTextSize("quiet-date".equals(text.getTag())?20:"quiet-caption".equals(text.getTag())?12:16);text.setTextColor("quiet-caption".equals(text.getTag())?MUTED:TEXT);text.setIncludeFontPadding(false);text.setLineSpacing(dp(text,2),1);
     }
@@ -66,3 +66,4 @@ final class MenuStyle {
         footer(dialog);
     }
 }
+
