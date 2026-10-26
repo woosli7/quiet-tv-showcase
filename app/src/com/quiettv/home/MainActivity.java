@@ -605,6 +605,8 @@ public class MainActivity extends Activity {
             else{p.setColor(0xff202735);c.drawRoundRect(x,y,x+size,y+size,4,4,p);String initial=fallback.isEmpty()?"?":fallback.substring(0,1);dots(c,initial,x+size*.28f,y+size*.28f,size*.55f,0xffb2bfcd,false);}
         }
         void csCard(Canvas c,float y,boolean focus){p.setShader(null);p.setStyle(Paint.Style.FILL);p.setColor(focus?0xff1d2432:0xff10151f);c.drawRoundRect(660,y,1190,y+94,7,7,p);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(focus?1.8f:1);p.setColor(focus?(prefs.getInt("theme",0)==0?0xffe9ad72:themeColor()):0xff252c38);c.drawRoundRect(660,y,1190,y+94,7,7,p);p.setStyle(Paint.Style.FILL);}
+        long pastRangeDay=Long.MIN_VALUE;String pastRangeZone="",pastRangeLabel="";
+        String pastMatchRange(){long now=System.currentTimeMillis(),day=CsResults.day(now,0);String zone=CsResults.zone().getID();if(day!=pastRangeDay||!zone.equals(pastRangeZone)){SimpleDateFormat f=new SimpleDateFormat("MMM d",Locale.US);f.setTimeZone(CsResults.zone());pastRangeLabel=f.format(new Date(CsResults.day(now,1-CsResults.DAYS)))+" – "+f.format(new Date(day));pastRangeDay=day;pastRangeZone=zone;}return pastRangeLabel;}
         void drawCs(Canvas c){
             if(cs==null)return;java.util.List<CsMatch> rows=cs.live();
             dots(c,"LIVE COUNTER-STRIKE",660,352,15,csFocused?0xffd8e2ed:0xff919baa,false);
@@ -619,8 +621,8 @@ public class MainActivity extends Activity {
                 csLogo(c,m.logoA,m.a,677,y+40,22);dots(c,fit(m.a,170,18),710,y+45,18,0xffdbe2ec,false);dots(c,"VS",895,y+48,10,0xff657387,false);csLogo(c,m.logoB,m.b,926,y+40,22);dots(c,fit(m.b,210,18),959,y+45,18,0xffdbe2ec,false);
                 String score=m.one>=0&&m.two>=0?"MAPS "+m.one+" - "+m.two:"SERIES SCORE UNAVAILABLE";dots(c,score+(m.bo>0?" / BO"+m.bo:""),710,y+76,10,0xff8d9eb2,false);if(focus)dots(c,"OK WATCH",1175,y+76,10,0xffe0b68b,true);
             }
-            int finals=cs.resultsLog.totalCount(System.currentTimeMillis()),upcoming=cs.upcoming().size();String resultCount=finals>0?finals+" FINAL":cs.resultsBusy?"CHECKING":cs.resultFailure.isEmpty()?"VIEW":"RETRY";String upcomingCount=upcoming>0?upcoming+" TODAY":cs.scheduleBusy?"CHECKING":cs.scheduleFailure.isEmpty()?"VIEW":"RETRY";
-            csListButton(c,594,"UPCOMING MATCHES",upcomingCount,csFocused&&csUpcomingFocus);csListButton(c,632,"PAST MATCHES",resultCount,csFocused&&csResultFocus);
+            int upcoming=cs.upcoming().size();String resultRange=pastMatchRange();String upcomingCount=upcoming>0?upcoming+" TODAY":cs.scheduleBusy?"CHECKING":cs.scheduleFailure.isEmpty()?"VIEW":"RETRY";
+            csListButton(c,594,"UPCOMING MATCHES",upcomingCount,csFocused&&csUpcomingFocus);csListButton(c,632,"PAST MATCHES",resultRange,csFocused&&csResultFocus);
             dots(c,csFocused?(csResultFocus?"OK RESULTS / LEFT APPS":csUpcomingFocus?"OK SCHEDULE / LEFT APPS":rows.isEmpty()?"OK NEXT / DOWN SCHEDULE / MENU OPTIONS":"UP/DOWN SELECT / OK WATCH / MENU STREAMS"):"RIGHT TO EXPLORE",660,674,10,0xff64748a,false);
             long age=System.currentTimeMillis()-cs.liveAt;String stamp=cs.verified()?"BO3 / CHECKED "+(age<60000?"JUST NOW":age/60000+"M AGO")+(cs.failure.isEmpty()?"":" / RETRYING"):"BO3 / "+(cs.busy?"CHECKING":"STATUS NOT VERIFIED");dots(c,stamp,660,696,9,0xff4e5c70,false);
         }
