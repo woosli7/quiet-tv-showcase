@@ -21,6 +21,7 @@ public class MainActivity extends Activity {
     Home screen;
     boolean setupShown;int profileGeneration;
     GoveeLights lights;
+    boolean csUpcomingOnlyFavorites=false,csPastOnlyFavorites=false;
     CsFeed cs;boolean csFocused=false,csResultFocus=false,csUpcomingFocus=false;int csSelected=0;long csSelectedId=0;
     long csResultDate;TextView csResultsHint;ListView csResultsList;AlertDialog csResultsPage;java.util.List<CsMatch> csResultRows=Collections.emptyList();String[] csResultLabels;
     long csUpcomingDate;TextView csUpcomingHint;ListView csUpcomingList;AlertDialog csUpcomingPage;java.util.List<CsMatch> csUpcomingRows=Collections.emptyList();String[] csUpcomingLabels;
@@ -380,7 +381,7 @@ public class MainActivity extends Activity {
     CharSequence csStarText(String text){if(text.indexOf('★')<0)return text;android.text.SpannableString value=new android.text.SpannableString(text);for(int i=0;i<text.length();i++)if(text.charAt(i)=='★')value.setSpan(new android.text.style.ForegroundColorSpan(CS_ACCENT),i,i+1,android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);return value;}
     String csTeamName(long id,String name){return cs!=null&&cs.favorites.contains(id,name)?"★ "+name:name;}
     String csMatchNames(CsMatch m){return csTeamName(m.teamIdA,m.a)+" vs "+csTeamName(m.teamIdB,m.b);}
-    boolean csMyTeams(boolean upcoming){return prefs.getBoolean(upcoming?"csUpcomingMyTeams":"csPastMyTeams",false);}
+    boolean csMyTeams(boolean upcoming){return upcoming?csUpcomingOnlyFavorites:csPastOnlyFavorites;}
     java.util.List<CsMatch> csFiltered(java.util.List<CsMatch> rows,boolean upcoming){return cs.favorites.filter(rows,csMyTeams(upcoming));}
     void csSetFavorite(CsFavorites.Team team,boolean on){
         CsMatch selectedMatch=csSelectedMatch();if(selectedMatch!=null)csSelectedId=selectedMatch.id;
@@ -403,7 +404,7 @@ public class MainActivity extends Activity {
     }
     void csAddFilter(LinearLayout heading,TextView hint,boolean upcoming){
         int height=Math.round(getResources().getDisplayMetrics().density*42);LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);bar.addView(hint,new LinearLayout.LayoutParams(0,-2,1));Button filter=new Button(this);filter.setTextSize(13);filter.setSingleLine(true);filter.setText(csMyTeams(upcoming)?"My teams ★":"All matches");bar.addView(filter,new LinearLayout.LayoutParams(-2,height));heading.addView(bar);
-        filter.setOnClickListener(v->{prefs.edit().putBoolean(upcoming?"csUpcomingMyTeams":"csPastMyTeams",!csMyTeams(upcoming)).apply();filter.setText(csMyTeams(upcoming)?"My teams ★":"All matches");if(upcoming){csUpcomingLabels=null;refreshCsUpcomingPage();}else{csResultLabels=null;refreshCsResultsPage();}filter.requestFocus();});
+        filter.setOnClickListener(v->{if(upcoming)csUpcomingOnlyFavorites=!csUpcomingOnlyFavorites;else csPastOnlyFavorites=!csPastOnlyFavorites;filter.setText(csMyTeams(upcoming)?"My teams ★":"All matches");if(upcoming){csUpcomingLabels=null;refreshCsUpcomingPage();}else{csResultLabels=null;refreshCsResultsPage();}filter.requestFocus();});
     }
 
     String csFinalLine(CsMatch m){return csTeamName(m.teamIdA,m.a)+(m.finalScore()?"  "+m.one+" - "+m.two+"  ":" vs ")+csTeamName(m.teamIdB,m.b);}
@@ -412,7 +413,7 @@ public class MainActivity extends Activity {
     void csUpcomingDetails(CsMatch m){showDialog(new AlertDialog.Builder(this).setTitle(csMatchNames(m)).setMessage(m.event+"\n\nScheduled "+csUpcomingTime(m.start)+" / local time"+(m.bo>0?"\nBest of "+m.bo:"")+"\n\nScheduled match / not confirmed live. Start times may change.\nSource: BO3.gg").setView(csFavoriteControls(m)).setPositiveButton("Open match page",(d,n)->{closeSettings();CsWatch.open(this,m.page(),true);}).setNegativeButton("Back",null).create());}
     void csChangeUpcomingDay(int delta){long next=CsSchedule.browseDay(csUpcomingDate,delta,System.currentTimeMillis());if(next==csUpcomingDate)return;View focused=csUpcomingPage.getCurrentFocus();boolean fromList=csUpcomingList.hasFocus();csUpcomingDate=next;csUpcomingLabels=null;csUpcomingRows=Collections.emptyList();refreshCsUpcomingPage();if(fromList)csUpcomingList.requestFocus();else if(focused!=null&&focused.isEnabled())focused.requestFocus();else csUpcomingPage.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus();cs.refreshSchedule(false);}
     void csShowUpcoming(){
-        if(csUpcomingPage!=null&&csUpcomingPage.isShowing())return;csUpcomingDate=CsSchedule.day(System.currentTimeMillis(),0);csUpcomingLabels=null;
+        if(csUpcomingPage!=null&&csUpcomingPage.isShowing())return;csUpcomingOnlyFavorites=false;csUpcomingDate=CsSchedule.day(System.currentTimeMillis(),0);csUpcomingLabels=null;
         int pad=Math.round(getResources().getDisplayMetrics().density*16);LinearLayout heading=new LinearLayout(this);heading.setOrientation(LinearLayout.VERTICAL);heading.setPadding(pad,0,pad,0);
         csUpcomingHint=new TextView(this);csUpcomingHint.setTextSize(13);csUpcomingHint.setTextColor(0xff9aa9bd);csUpcomingHint.setPadding(0,pad/2,0,0);csAddFilter(heading,csUpcomingHint,true);csUpcomingList=new ListView(this);csUpcomingList.setAdapter(csRowsAdapter(new String[]{"Checking schedule..."},Collections.emptyList()));heading.addView(csUpcomingList,new LinearLayout.LayoutParams(-1,pad*7));
         csUpcomingPage=new AlertDialog.Builder(this).setTitle("Upcoming matches").setView(heading).setNeutralButton("Next day",null).setPositiveButton("Previous day",null).setNegativeButton("Back",null).create();showDialog(csUpcomingPage);
@@ -449,7 +450,7 @@ public class MainActivity extends Activity {
     String csPastDayLabel(){long now=System.currentTimeMillis();SimpleDateFormat f=new SimpleDateFormat("EEE MMM d",Locale.US);f.setTimeZone(CsResults.zone());return (csResultDate==CsResults.day(now,0)?"Today / ":csResultDate==CsResults.day(now,-1)?"Yesterday / ":"")+f.format(new Date(csResultDate));}
     void csChangeResultDay(int delta){long next=CsResults.browseDay(csResultDate,delta,System.currentTimeMillis());if(next==csResultDate)return;View focused=csResultsPage.getCurrentFocus();boolean fromList=csResultsList.hasFocus();csResultDate=next;csResultLabels=null;csResultRows=Collections.emptyList();refreshCsResultsPage();if(fromList)csResultsList.requestFocus();else if(focused!=null&&focused.isEnabled())focused.requestFocus();else csResultsPage.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus();cs.refreshResults(false);}
     void csShowResults(){
-        if(csResultsPage!=null&&csResultsPage.isShowing())return;csResultDate=CsResults.day(System.currentTimeMillis(),0);csResultLabels=null;
+        if(csResultsPage!=null&&csResultsPage.isShowing())return;csPastOnlyFavorites=false;csResultDate=CsResults.day(System.currentTimeMillis(),0);csResultLabels=null;
         int pad=Math.round(getResources().getDisplayMetrics().density*16);LinearLayout heading=new LinearLayout(this);heading.setOrientation(LinearLayout.VERTICAL);heading.setPadding(pad,0,pad,0);
         csResultsHint=new TextView(this);csResultsHint.setTextSize(13);csResultsHint.setTextColor(0xff9aa9bd);csResultsHint.setPadding(0,pad/2,0,0);csAddFilter(heading,csResultsHint,false);csResultsList=new ListView(this);csResultsList.setAdapter(csRowsAdapter(new String[]{"Checking past matches..."},Collections.emptyList()));heading.addView(csResultsList,new LinearLayout.LayoutParams(-1,pad*7));
         csResultsPage=new AlertDialog.Builder(this).setTitle("Past matches").setView(heading).setPositiveButton("Previous day",null).setNeutralButton("Next day",null).setNegativeButton("Back",null).create();showDialog(csResultsPage);
