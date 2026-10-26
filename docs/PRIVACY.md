@@ -7,7 +7,7 @@ The app does not include analytics. Optional city search sends the entered city/
 ## Optional permissions
 
 - **Internet:** weather, solar times, match discovery, team/event images, stream resolution, and optional Govee control.
-- **Read logs:** the Home helper reads filtered foreground/Home events locally to detect routing events. It does not save or transmit log lines. This is a broad Android permission, granted separately through ADB; skip it if you do not want the helper.
+- **Read logs:** the Home helper reads filtered foreground/Home events locally to detect routing events. With the separately installed, same-signature DIRECTV night companion, it also reads specific local playback-state and remote-key events to recover from Fire OS pausing the video on that branded button. At most eight transient player identities/states are held in memory, with no playback history saved. Without that companion, the additional playback/key filters are not enabled. It does not save or transmit log lines. This is a broad Android permission, granted separately through ADB; skip it if you do not want the helper.
 - **Boot completed / foreground service:** support the optional Home/app-return helper and night overlay. A persistent notification identifies the service.
 - **Display over other apps:** required only for the warm/dim filter. It can be revoked in Android settings. An overlay may not affect every protected video surface.
 
