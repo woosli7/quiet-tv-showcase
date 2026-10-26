@@ -16,7 +16,7 @@ final class MenuStyle {
     }
     static ColorStateList colors(){return new ColorStateList(new int[][]{{-android.R.attr.state_enabled},{android.R.attr.state_focused},{android.R.attr.state_selected},{}},new int[]{0xff526071,0xffffd1a4,0xffffd1a4,TEXT});}
     static void text(TextView text){
-        text.setTypeface(Typeface.create("monospace",Typeface.NORMAL));text.setTextSize("quiet-caption".equals(text.getTag())?12:16);text.setTextColor("quiet-caption".equals(text.getTag())?MUTED:TEXT);text.setIncludeFontPadding(false);text.setLineSpacing(dp(text,2),1);
+        text.setTypeface(Typeface.create("monospace",Typeface.NORMAL));text.setTextSize("quiet-date".equals(text.getTag())?20:"quiet-caption".equals(text.getTag())?12:16);text.setTextColor("quiet-caption".equals(text.getTag())?MUTED:TEXT);text.setIncludeFontPadding(false);text.setLineSpacing(dp(text,2),1);
     }
     static void button(Button button){
         text(button);button.setTextSize(13);button.setAllCaps(false);button.setTextColor(colors());button.setBackground(shape(button,0xff171f2c,EDGE,6));
