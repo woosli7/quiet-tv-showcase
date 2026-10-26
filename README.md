@@ -35,6 +35,12 @@ Each supported app has its own color, lettering treatment, and dotted brand-insp
 | --- | --- |
 | ![Hulu selected with a green logo and matching glow](docs/images/public-hulu.png) | ![Chrome-inspired multicolor browser shortcut](docs/images/public-chrome.png) |
 
+## Menus that stay out of the way
+
+![Quiet TV settings with amber text-only selection](docs/images/menus.png)
+
+Dark panels, compact controls, and a simple amber text highlight keep settings consistent with the home screen. Long labels wrap so you can read the full option.
+
 ## Set it up once, adjust it whenever you like
 
 | First-time setup | Widget controls |
@@ -55,7 +61,7 @@ The Chrome-inspired shortcut opens **Amazon Silk**. It changes the label and vis
 | --- | --- |
 | ![Sunrise preview with morning desert colors](docs/images/sunrise.png) | ![Night sky with stars and a crescent moon](docs/images/idle.png) |
 
-These are captures from the TV. Sunrise and sunset use the app's built-in sky previews; the clock continues to show the actual time. The scene is drawn locally rather than playing a background video.
+These are captures from the TV using a separate demo profile named **Demo**, with **Paris** selected for weather and local time. The sky scenes use the app's built-in previews; the clock continues to show the actual time. The scene is drawn locally rather than playing a background video.
 
 ## Optional Counter-Strike widget
 
@@ -64,9 +70,15 @@ Counter-Strike is **off by default and absent from first-time setup**. Enable it
 Follow teams from **Team favorites** in match details or the CS options menu. Favorite teams get amber stars and priority within the existing two live cards. Upcoming and Past matches offer **All matches / My teams** filters while preserving their date order. Favorites start empty, stay on the device, and add no polling or accounts.
 
 <details>
-<summary>See the optional match-results view</summary>
+<summary>See upcoming matches, past scores, and highlights</summary>
 
-![Optional Counter-Strike final scores](docs/images/results.png)
+| Upcoming matches | Past matches |
+| --- | --- |
+| ![Optional Counter-Strike daily schedule](docs/images/upcoming.png) | ![Optional Counter-Strike final scores](docs/images/results.png) |
+
+![Finished-match details with Highlights, Open match page, and Back](docs/images/match-details.png)
+
+The match views use real provider data captured at the time shown. They illustrate the interface, not a current match-status report.
 
 </details>
 
