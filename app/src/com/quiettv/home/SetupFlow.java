@@ -29,7 +29,8 @@ final class SetupFlow {
         SharedPreferences.Editor e=host.prefs.edit().putString("name",name).putBoolean("widgetGreeting",greeting).putBoolean("widgetClock",clock).putBoolean("weather",weather).putBoolean("setupComplete",true);
         for(int i=0;i<apps.size();i++)e.putBoolean("hide:"+apps.get(i).key,!enabled[i]);e.apply();host.saveLocation(city,cityZone);dialog.dismiss();host.loadApps();host.applyWidgets();host.refreshWeather(true);Toast.makeText(host,"Your home screen is ready",Toast.LENGTH_SHORT).show();
     }
-    void render(){
+    void render(){renderBody();MenuStyle.view(body);MenuStyle.footer(dialog);}
+    void renderBody(){
         generation++;body.removeAllViews();input=null;list=null;dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setText(locationOnly?"Cancel":step==0?"Later":"Back");dialog.getButton(AlertDialog.BUTTON_POSITIVE).setText(locationOnly?"Save":step==3?"Finish":"Continue");dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setVisibility(step==1?View.VISIBLE:View.GONE);dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setText(locationOnly?"No city":"Skip city");
         if(step==0){dialog.setTitle("Make it yours / 1 of 4");body.addView(text("What should Quiet TV call you? Leave this blank for a simple greeting."));input=new EditText(host);input.setSingleLine(true);input.setText(name);input.setHint("Your name");input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(18)});body.addView(input);return;}
         if(step==1){

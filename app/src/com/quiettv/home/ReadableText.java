@@ -19,15 +19,15 @@ final class ReadableText {
     }
     static void rows(ListView list){
         list.setOnHierarchyChangeListener(new ViewGroup.OnHierarchyChangeListener(){
-            public void onChildViewAdded(View parent,View child){view(child);}
+            public void onChildViewAdded(View parent,View child){view(child);MenuStyle.row(child);}
             public void onChildViewRemoved(View parent,View child){}
         });
-        for(int i=0;i<list.getChildCount();i++)view(list.getChildAt(i));
+        for(int i=0;i<list.getChildCount();i++){view(list.getChildAt(i));MenuStyle.row(list.getChildAt(i));}MenuStyle.list(list);
     }
     static void dialog(AlertDialog dialog){
         View decor=dialog.getWindow().getDecorView();view(decor);
         int id=dialog.getContext().getResources().getIdentifier("alertTitle","id","android");
-        TextView title=id==0?null:decor.findViewById(id);if(title!=null)title.setTextSize(22);
+        TextView title=id==0?null:decor.findViewById(id);if(title!=null)title.setTextSize(22);MenuStyle.dialog(dialog);
         decor.post(()->{if(!dialog.isShowing()||dialog.getListView()==null)return;
             android.util.DisplayMetrics metrics=dialog.getContext().getResources().getDisplayMetrics();
             ListView list=dialog.getListView();int cap=Math.min(Math.round(metrics.density*300),Math.round(metrics.heightPixels*.58f));
