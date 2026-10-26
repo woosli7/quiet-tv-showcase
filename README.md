@@ -45,7 +45,7 @@ Dark panels, compact controls, and a simple amber text highlight keep settings c
 
 | First-time setup | Widget controls |
 | --- | --- |
-| ![Setup offers greeting, clock/date, and weather without esports options](docs/images/setup.png) | ![Optional Counter-Strike appears only in widget settings, switched off](docs/images/widgets.png) |
+| ![Setup offers greeting, clock/date, and weather without esports options](docs/images/setup-dark-b8913cc2.png) | ![Optional Counter-Strike appears only in widget settings, switched off](docs/images/widgets-dark-5fea6ac6.png) |
 
 Choices are saved when you finish setup. Settings includes **City and time** and **Run setup again**; rerunning setup begins with your existing choices. No account or device-location permission is needed for city search. Without a selected city, the clock follows the TV's timezone and the sky uses preset transitions. [Setup behavior and preview testing](docs/PUBLIC-SETUP.md).
 
