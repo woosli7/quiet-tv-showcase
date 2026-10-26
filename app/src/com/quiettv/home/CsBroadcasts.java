@@ -7,13 +7,13 @@ import org.json.*;
 /** Reviewed organizer identities, intersected with this match's actual broadcast list. */
 final class CsBroadcasts {
     static final class Profile {
-        Pattern event;final HashSet<String> identities=new HashSet<>();
+        String language="";Pattern event;final HashSet<String> identities=new HashSet<>();
     }
     final ArrayList<Profile> profiles=new ArrayList<>();
     CsBroadcasts(JSONObject root){
         JSONArray rows=root.optJSONArray("profiles");if(rows==null)return;
         for(int i=0;i<Math.min(40,rows.length());i++)try{
-            JSONObject j=rows.getJSONObject(i);Profile p=new Profile();p.event=Pattern.compile(j.getString("event_pattern"),Pattern.CASE_INSENSITIVE);
+            JSONObject j=rows.getJSONObject(i);Profile p=new Profile();p.language=j.optString("twitch_language","");p.event=Pattern.compile(j.getString("event_pattern"),Pattern.CASE_INSENSITIVE);
             for(String platform:new String[]{"twitch","kick","youtube"}){
                 JSONArray channels=j.optJSONArray(platform);if(channels==null)continue;
                 for(int n=0;n<Math.min(30,channels.length());n++){String value=channels.getString(n);if(!value.startsWith("channel/"))value=value.toLowerCase(Locale.US);p.identities.add(platform+":"+value);}
@@ -22,6 +22,14 @@ final class CsBroadcasts {
         }catch(Exception ignored){} // Malformed rules never grant trust.
     }
     boolean known(String event){for(Profile p:profiles)if(p.event.matcher(event).find())return true;return false;}
+    java.util.List<CsStream> twitchCandidates(String event,int limit){
+        TreeMap<String,CsStream> candidates=new TreeMap<>();
+        for(Profile p:profiles)if(p.event.matcher(event).find())for(String id:p.identities)if(id.startsWith("twitch:")){
+            String channel=id.substring(7),url=CsStream.url("https://www.twitch.tv/"+channel);if(url==null)continue;
+            CsStream stream=new CsStream();stream.url=url;stream.name=channel;stream.language=p.language;stream.organizer=true;candidates.put(channel,stream);
+        }
+        ArrayList<CsStream> out=new ArrayList<>();for(CsStream s:candidates.values()){if(out.size()>=Math.max(0,Math.min(3,limit)))break;out.add(s);}return out;
+    }
     static String identity(String value){
         try{
             URI uri=new URI(value);String host=uri.getHost();if(!"https".equalsIgnoreCase(uri.getScheme())||host==null||uri.getUserInfo()!=null||uri.getPort()!=-1)return "";
