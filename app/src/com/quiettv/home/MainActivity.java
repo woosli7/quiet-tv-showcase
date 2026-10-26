@@ -139,12 +139,16 @@ public class MainActivity extends Activity {
         if(parent!=null)rememberSettingsFocus(parent);
         settingsPages.add(dialog);dialogs=settingsPages.size();
         dialog.setOnDismissListener(d->{
-            if(closingSettings||settingsPages.isEmpty()||settingsPages.get(settingsPages.size()-1)!=dialog)return;
-            settingsPages.remove(settingsPages.size()-1);settingsFocus.remove(dialog);preparedSettings.remove(dialog);dialogs=settingsPages.size();
+            if(closingSettings)return;
+            int index=settingsPages.indexOf(dialog);if(index<0)return;
+            // Android posts dismissal after the result page may already be on top.
+            // Remove the dismissed page even from the middle; never restore its spinner.
+            boolean wasTop=index==settingsPages.size()-1;
+            settingsPages.remove(index);settingsFocus.remove(dialog);preparedSettings.remove(dialog);dialogs=settingsPages.size();
             if(dialog==lightsPage){lightsPage=null;lightsRows=null;}
             if(dialog==csResultsPage){csResultsPage=null;csResultRows=Collections.emptyList();csResultLabels=null;}
             if(dialog==csUpcomingPage){csUpcomingPage=null;csUpcomingRows=Collections.emptyList();csUpcomingLabels=null;}
-            if(!settingsPages.isEmpty())revealSettingsPage(settingsPages.get(settingsPages.size()-1));
+            if(wasTop&&!settingsPages.isEmpty())revealSettingsPage(settingsPages.get(settingsPages.size()-1));
             lastInput=SystemClock.elapsedRealtime();scheduleTick();
         });
         revealSettingsPage(dialog);

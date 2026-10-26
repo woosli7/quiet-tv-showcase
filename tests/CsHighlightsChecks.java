@@ -29,6 +29,13 @@ public class CsHighlightsChecks {
         ok(!h.title(m,TITLE.replace("Bucharest","Cluj Napoca")),"other tournament rejected");
         ok(!h.title(m,TITLE.replace("HIGHLIGHTS","FULL MATCH")),"full broadcast not called highlights");
         CsMatch alias=match();alias.a="Natus Vincere";ok(h.title(alias,TITLE.replace("FUT","NAVI")),"configured team alias works");
+        CsMatch bb=match();bb.a="BetBoom";bb.b="Natus Vincere";bb.start=CsMatch.time("2026-10-26T17:00:00Z");bb.ended=CsMatch.time("2026-10-26T19:01:01Z");
+        String bbTitle="WINNER TO PLAYOFFS! BB Team vs NAVI - HIGHLIGHTS - PGL Masters Bucharest 2026 | CS2";
+        ok(h.title(bb,bbTitle),"real PGL BB Team and NAVI title aliases match feed names");
+        ok(!h.title(bb,bbTitle.replace("BB Team","BB")),"ambiguous bare BB is not a configured alias");
+        ok(!h.title(bb,bbTitle.replace("NAVI","Nemiga")),"BB Team alias still requires exact opponent");
+        JSONObject bbPlayer=player();bbPlayer.getJSONObject("videoDetails").put("videoId","Pgophr8oqXM").put("title",bbTitle).put("lengthSeconds","3044");bbPlayer.getJSONObject("microformat").getJSONObject("playerMicroformatRenderer").put("publishDate","2026-10-26T12:19:34-07:00");
+        ok(h.verify(bbPlayer,s,bb,"Pgophr8oqXM",CsMatch.time("2026-10-26T21:30:00Z"))!=null,"real BetBoom NAVI upload passes owner event and finish-time checks");
         CsMatch esl=match();esl.event="ESL Pro League Season 24";ok(h.source(esl)!=null&&h.title(esl,"FUT vs Liquid HIGHLIGHTS EPL S24"),"ESL event abbreviation works");
         CsMatch blast=match();blast.event="BLAST Premier Rivals 2026 Season 2";ok(h.source(blast)!=null,"BLAST has reviewed source");
         CsMatch unknown=match();unknown.event="Unreviewed Open";ok(h.source(unknown)==null,"unknown organizer never guessed");
