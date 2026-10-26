@@ -629,9 +629,9 @@ public class MainActivity extends Activity {
             super.onDraw(real);cleanType=prefs.getInt("typeStyle",1)==1;real.save();real.scale(getWidth()/1280f,getHeight()/720f);
             real.drawColor(Color.rgb(9,10,16));
             if(idle){idleScreen(real);real.restore();return;}
-            int accent=selected<visible.size()?brandColor(visible.get(selected).key):0xfff05243;
-            int glow=prefs.getInt("glow",1),shaderKey=accent*31+glow;
-            if(glow>0){if(shaderKey!=glowKey){int alpha=glow==1?18:glow==2?34:54;glowShader=new RadialGradient(80,390,570,new int[]{(accent&0x00ffffff)|(alpha<<24),0x00090a10},null,Shader.TileMode.CLAMP);glowKey=shaderKey;}p.setShader(glowShader);p.setAlpha(255);real.drawRect(0,0,1280,720,p);p.setShader(null);}
+            int accent=csFocused?(prefs.getInt("theme",0)==0?0xffe9ad72:themeColor()):selected<visible.size()?brandColor(visible.get(selected).key):0xfff05243;
+            int glow=prefs.getInt("glow",1),shaderKey=accent*31+glow+(csFocused?7:0);
+            if(glow>0){if(shaderKey!=glowKey){int alpha=csFocused?(glow==1?28:glow==2?44:60):(glow==1?18:glow==2?34:54);glowShader=new RadialGradient(csFocused?930:80,csFocused?490:390,csFocused?610:570,new int[]{(accent&0x00ffffff)|(alpha<<24),0x00090a10},null,Shader.TileMode.CLAMP);glowKey=shaderKey;}p.setShader(glowShader);p.setAlpha(255);real.drawRect(0,0,1280,720,p);p.setShader(null);}
             String welcome=greeting();float greetingSize=Math.min(40,1000f/Math.max(1,welcome.length())/.61f);
             if(prefs.getBoolean("widgetGreeting",true))dots(real,welcome,1190,100,greetingSize,0xffeeeef4,true);
             if(prefs.getBoolean("widgetClock",true)){dots(real,localTime("h:mm a"),1190,175,48,0xffeeeef4,true);
