@@ -11,6 +11,10 @@ public class HomeService extends Service {
     volatile java.lang.Process reader;
     final Handler handler=new Handler(Looper.getMainLooper());
     long lastHome;
+    long homeDeadline;
+    final Runnable homeFallback=()->{
+        if(alive&&homeDeadline>SystemClock.elapsedRealtime()&&getSharedPreferences("quiet",MODE_PRIVATE).getBoolean("redirect",false))launchHome();
+    };
     long lastNight;
     NightScreen nightScreen;
     volatile int watchGeneration;
@@ -26,7 +30,7 @@ public class HomeService extends Service {
     };
     final BroadcastReceiver screenEvents=new BroadcastReceiver(){
         public void onReceive(Context context,Intent intent){
-            if(Intent.ACTION_SCREEN_OFF.equals(intent.getAction())){cancelWake();handler.removeCallbacks(returnHome);}
+            if(Intent.ACTION_SCREEN_OFF.equals(intent.getAction())){cancelWake();homeDeadline=0;handler.removeCallbacks(homeFallback);handler.removeCallbacks(returnHome);}
             else if(Intent.ACTION_SCREEN_ON.equals(intent.getAction())||Intent.ACTION_USER_PRESENT.equals(intent.getAction()))beginWake();
         }
     };
@@ -97,20 +101,37 @@ public class HomeService extends Service {
     void resumed(String pkg){
         if(!alive)return;foregroundPackage=pkg;handler.removeCallbacks(returnHome);
         android.content.SharedPreferences prefs=getSharedPreferences("quiet",MODE_PRIVATE);
-        if(AppReturnPolicy.QUIET_HOME.equals(pkg)){cancelWake();clearTrackedApp(this);return;}
+        if(AppReturnPolicy.QUIET_HOME.equals(pkg)){homeDeadline=0;handler.removeCallbacks(homeFallback);cancelWake();clearTrackedApp(this);return;}
         if(pkg.equals(prefs.getString("returnTarget",""))&&!prefs.getBoolean("returnObserved",false))prefs.edit().putBoolean("returnObserved",true).apply();
-        if(AppReturnPolicy.STOCK_HOME.equals(pkg)){handler.postDelayed(returnHome,350);if(wakeDeadline>SystemClock.elapsedRealtime())handler.postDelayed(wakeHome,350);}
+        if(AppReturnPolicy.STOCK_HOME.equals(pkg)){
+            // Wait for Fire OS to commit Home, then return immediately instead of racing it.
+            if(homeDeadline>SystemClock.elapsedRealtime()&&prefs.getBoolean("redirect",false)){handler.removeCallbacks(homeFallback);launchHome();}
+            else handler.postDelayed(returnHome,350);
+            if(wakeDeadline>SystemClock.elapsedRealtime())handler.post(wakeHome);
+        }
     }
     void launchHome(){
         PowerManager power=(PowerManager)getSystemService(POWER_SERVICE);if(power==null||!power.isInteractive())return;
-        Intent launch=new Intent(this,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        Intent launch=new Intent(this,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        // Restore only our own existing task. Fire OS queues a fresh activity start
+        // after Home; AppTask restoration avoids that queue without extra permissions.
+        ActivityManager manager=(ActivityManager)getSystemService(ACTIVITY_SERVICE);
+        if(manager!=null)try{
+            for(ActivityManager.AppTask task:manager.getAppTasks()){
+                ActivityManager.RecentTaskInfo info=task.getTaskInfo();
+                ComponentName base=info.baseIntent==null?null:info.baseIntent.getComponent();
+                if(base!=null&&getPackageName().equals(base.getPackageName())&&MainActivity.class.getName().equals(base.getClassName())){task.moveToFront();break;}
+            }
+        }catch(Exception ignored){}
         try{startActivity(launch);}catch(Exception ignored){}
     }
     void home(){
-        long now=SystemClock.elapsedRealtime();if(now-lastHome<1200)return;lastHome=now;
-        handler.postDelayed(()->{if(alive&&getSharedPreferences("quiet",MODE_PRIVATE).getBoolean("redirect",false)){
-            launchHome();
-        }},300);
+        long now=SystemClock.elapsedRealtime();if(now-lastHome<100)return;lastHome=now;
+        if(!getSharedPreferences("quiet",MODE_PRIVATE).getBoolean("redirect",false))return;
+        homeDeadline=now+1500;
+        handler.removeCallbacks(homeFallback);
+        if(AppReturnPolicy.STOCK_HOME.equals(foregroundPackage))launchHome();
+        else handler.postDelayed(homeFallback,200);
     }
     public int onStartCommand(Intent i,int flags,int id){
         if(i!=null&&NightScreen.TOGGLE.equals(i.getAction()))toggleNight();
