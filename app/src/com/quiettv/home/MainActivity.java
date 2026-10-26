@@ -110,8 +110,8 @@ public class MainActivity extends Activity {
     }
     void revealSettingsPage(AlertDialog dialog){
         dialog.show();
-        if(dialog==csResultsPage){refreshCsResultsPage();return;}
-        if(dialog==csUpcomingPage){refreshCsUpcomingPage();return;}
+        if(dialog==csResultsPage){refreshCsResultsPage();if(!csResultRows.isEmpty())csResultsList.requestFocus();return;}
+        if(dialog==csUpcomingPage){refreshCsUpcomingPage();if(!csUpcomingRows.isEmpty())csUpcomingList.requestFocus();return;}
         if(settingsPages.size()>1){
             android.widget.Button back=dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
             if(back!=null&&dialog.getListView()!=null)back.setText("Back");
@@ -377,36 +377,65 @@ public class MainActivity extends Activity {
     String csTime(long when){SimpleDateFormat f=new SimpleDateFormat("EEE h:mm a",Locale.US);f.setTimeZone(TvProfile.zone());return f.format(new Date(when));}
     CsMatch csSelectedMatch(){if(csResultFocus||csUpcomingFocus)return null;java.util.List<CsMatch> rows=cs.live();return csSelected<rows.size()?rows.get(csSelected):null;}
     String csResultDay(){SimpleDateFormat f=new SimpleDateFormat("EEE MMM d",Locale.US);f.setTimeZone(TvProfile.zone());return f.format(new Date());}
-    String csFinalLine(CsMatch m){return m.a+(m.finalScore()?"  "+m.one+" - "+m.two+"  ":" vs ")+m.b;}
+    CharSequence csStarText(String text){if(text.indexOf('★')<0)return text;android.text.SpannableString value=new android.text.SpannableString(text);for(int i=0;i<text.length();i++)if(text.charAt(i)=='★')value.setSpan(new android.text.style.ForegroundColorSpan(CS_ACCENT),i,i+1,android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);return value;}
+    String csTeamName(long id,String name){return cs!=null&&cs.favorites.contains(id,name)?"★ "+name:name;}
+    String csMatchNames(CsMatch m){return csTeamName(m.teamIdA,m.a)+" vs "+csTeamName(m.teamIdB,m.b);}
+    boolean csMyTeams(boolean upcoming){return prefs.getBoolean(upcoming?"csUpcomingMyTeams":"csPastMyTeams",false);}
+    java.util.List<CsMatch> csFiltered(java.util.List<CsMatch> rows,boolean upcoming){return cs.favorites.filter(rows,csMyTeams(upcoming));}
+    void csSetFavorite(CsFavorites.Team team,boolean on){
+        CsMatch selectedMatch=csSelectedMatch();if(selectedMatch!=null)csSelectedId=selectedMatch.id;
+        if(!cs.favorites.set(team.id,team.name,on)){Toast.makeText(this,CsFavorites.valid(team.name)?"You can follow up to 32 teams":"Choose a named team to follow",Toast.LENGTH_LONG).show();return;}
+        prefs.edit().putString("csFavoriteTeams",cs.favorites.save()).apply();csUpcomingLabels=null;csResultLabels=null;cs.notifyChange();Toast.makeText(this,(on?"Following ":"Unfollowed ")+team.name,Toast.LENGTH_SHORT).show();
+    }
+    String csFavoriteRow(CsFavorites.Team t){return (cs.favorites.contains(t.id,t.name)?"★ ":"☆ ")+t.name+(cs.favorites.contains(t.id,t.name)?" / Following":" / Follow");}
+    void csTeamFavorites(CsMatch match){
+        if(cs==null)return;final AlertDialog parent=settingsPages.isEmpty()?null:settingsPages.get(settingsPages.size()-1);java.util.List<CsFavorites.Team> teams;
+        if(match!=null)teams=Arrays.asList(new CsFavorites.Team(match.teamIdA,match.a),new CsFavorites.Team(match.teamIdB,match.b));
+        else{ArrayList<CsMatch> known=new ArrayList<>(cs.matches);known.addAll(cs.schedule);known.addAll(cs.resultsLog.allRows(System.currentTimeMillis()));teams=cs.favorites.available(known);}
+        if(teams.isEmpty()){showDialog(new AlertDialog.Builder(this).setTitle("Team favorites").setMessage("Teams will appear as match data loads. You can also follow teams from any match's details.").setNegativeButton("Back",null).create());return;}
+        String[] labels=new String[teams.size()];for(int i=0;i<labels.length;i++)labels[i]=csFavoriteRow(teams.get(i));
+        menu("Team favorites / OK to follow or unfollow",labels,(dialog,n)->{CsFavorites.Team t=teams.get(n);csSetFavorite(t,!cs.favorites.contains(t.id,t.name));for(int i=0;i<labels.length;i++)labels[i]=csFavoriteRow(teams.get(i));((BaseAdapter)((AlertDialog)dialog).getListView().getAdapter()).notifyDataSetChanged();if(match!=null&&parent!=null&&parent.getListView()==null&&(match.status.equals("finished")||match.status.equals("upcoming")))parent.setTitle(match.status.equals("finished")?csFinalLine(match):csMatchNames(match));});
+    }
+    View csFavoriteControls(CsMatch match){int pad=Math.round(getResources().getDisplayMetrics().density*16);LinearLayout box=new LinearLayout(this);box.setPadding(pad,0,pad,0);Button button=new Button(this);button.setText("Team favorites");button.setOnClickListener(v->csTeamFavorites(match));box.addView(button,new LinearLayout.LayoutParams(-1,-2));return box;}
+    boolean csFooterArrow(AlertDialog page,int key,KeyEvent event){
+        if(key!=KeyEvent.KEYCODE_DPAD_LEFT&&key!=KeyEvent.KEYCODE_DPAD_RIGHT)return false;Button[] buttons={page.getButton(AlertDialog.BUTTON_POSITIVE),page.getButton(AlertDialog.BUTTON_NEUTRAL),page.getButton(AlertDialog.BUTTON_NEGATIVE)};View focus=page.getCurrentFocus();int selected=-1;for(int i=0;i<buttons.length;i++)if(focus==buttons[i])selected=i;if(selected<0)return false;
+        if(event.getAction()==KeyEvent.ACTION_DOWN&&event.getRepeatCount()==0){int delta=key==KeyEvent.KEYCODE_DPAD_RIGHT?1:-1;for(int i=selected+delta;i>=0&&i<buttons.length;i+=delta)if(buttons[i].isEnabled()){buttons[i].requestFocus();break;}}return true;
+    }
+    void csAddFilter(LinearLayout heading,TextView hint,boolean upcoming){
+        int height=Math.round(getResources().getDisplayMetrics().density*42);LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);bar.addView(hint,new LinearLayout.LayoutParams(0,-2,1));Button filter=new Button(this);filter.setTextSize(13);filter.setSingleLine(true);filter.setText(csMyTeams(upcoming)?"My teams ★":"All matches");bar.addView(filter,new LinearLayout.LayoutParams(-2,height));heading.addView(bar);
+        filter.setOnClickListener(v->{prefs.edit().putBoolean(upcoming?"csUpcomingMyTeams":"csPastMyTeams",!csMyTeams(upcoming)).apply();filter.setText(csMyTeams(upcoming)?"My teams ★":"All matches");if(upcoming){csUpcomingLabels=null;refreshCsUpcomingPage();}else{csResultLabels=null;refreshCsResultsPage();}filter.requestFocus();});
+    }
+
+    String csFinalLine(CsMatch m){return csTeamName(m.teamIdA,m.a)+(m.finalScore()?"  "+m.one+" - "+m.two+"  ":" vs ")+csTeamName(m.teamIdB,m.b);}
     String csUpcomingDayLabel(){long now=System.currentTimeMillis();SimpleDateFormat f=new SimpleDateFormat("EEE MMM d",Locale.US);f.setTimeZone(CsSchedule.zone());String date=f.format(new Date(csUpcomingDate));return (csUpcomingDate==CsSchedule.day(now,0)?"Today / ":csUpcomingDate==CsSchedule.day(now,1)?"Tomorrow / ":"")+date;}
     String csUpcomingTime(long when){SimpleDateFormat f=new SimpleDateFormat("EEE MMM d, h:mm a",Locale.US);f.setTimeZone(CsSchedule.zone());return f.format(new Date(when));}
-    void csUpcomingDetails(CsMatch m){showDialog(new AlertDialog.Builder(this).setTitle(m.a+" vs "+m.b).setMessage(m.event+"\n\nScheduled "+csUpcomingTime(m.start)+" / local time"+(m.bo>0?"\nBest of "+m.bo:"")+"\n\nScheduled match / not confirmed live. Start times may change.\nSource: BO3.gg").setPositiveButton("Open match page",(d,n)->{closeSettings();CsWatch.open(this,m.page(),true);}).setNegativeButton("Back",null).create());}
+    void csUpcomingDetails(CsMatch m){showDialog(new AlertDialog.Builder(this).setTitle(csMatchNames(m)).setMessage(m.event+"\n\nScheduled "+csUpcomingTime(m.start)+" / local time"+(m.bo>0?"\nBest of "+m.bo:"")+"\n\nScheduled match / not confirmed live. Start times may change.\nSource: BO3.gg").setView(csFavoriteControls(m)).setPositiveButton("Open match page",(d,n)->{closeSettings();CsWatch.open(this,m.page(),true);}).setNegativeButton("Back",null).create());}
     void csChangeUpcomingDay(int delta){long next=CsSchedule.browseDay(csUpcomingDate,delta,System.currentTimeMillis());if(next==csUpcomingDate)return;View focused=csUpcomingPage.getCurrentFocus();boolean fromList=csUpcomingList.hasFocus();csUpcomingDate=next;csUpcomingLabels=null;csUpcomingRows=Collections.emptyList();refreshCsUpcomingPage();if(fromList)csUpcomingList.requestFocus();else if(focused!=null&&focused.isEnabled())focused.requestFocus();else csUpcomingPage.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus();cs.refreshSchedule(false);}
     void csShowUpcoming(){
         if(csUpcomingPage!=null&&csUpcomingPage.isShowing())return;csUpcomingDate=CsSchedule.day(System.currentTimeMillis(),0);csUpcomingLabels=null;
         int pad=Math.round(getResources().getDisplayMetrics().density*16);LinearLayout heading=new LinearLayout(this);heading.setOrientation(LinearLayout.VERTICAL);heading.setPadding(pad,0,pad,0);
-        csUpcomingHint=new TextView(this);csUpcomingHint.setTextSize(13);csUpcomingHint.setTextColor(0xff9aa9bd);csUpcomingHint.setPadding(0,pad/2,0,0);heading.addView(csUpcomingHint);csUpcomingList=new ListView(this);csUpcomingList.setAdapter(csRowsAdapter(new String[]{"Checking schedule..."},Collections.emptyList()));heading.addView(csUpcomingList,new LinearLayout.LayoutParams(-1,pad*7));
+        csUpcomingHint=new TextView(this);csUpcomingHint.setTextSize(13);csUpcomingHint.setTextColor(0xff9aa9bd);csUpcomingHint.setPadding(0,pad/2,0,0);csAddFilter(heading,csUpcomingHint,true);csUpcomingList=new ListView(this);csUpcomingList.setAdapter(csRowsAdapter(new String[]{"Checking schedule..."},Collections.emptyList()));heading.addView(csUpcomingList,new LinearLayout.LayoutParams(-1,pad*7));
         csUpcomingPage=new AlertDialog.Builder(this).setTitle("Upcoming matches").setView(heading).setNeutralButton("Next day",null).setPositiveButton("Previous day",null).setNegativeButton("Back",null).create();showDialog(csUpcomingPage);
         csUpcomingList.setOnItemClickListener((parent,row,index,id)->{if(index<csUpcomingRows.size())csUpcomingDetails(csUpcomingRows.get(index));});
         csUpcomingPage.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->csChangeUpcomingDay(-1));csUpcomingPage.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v->csChangeUpcomingDay(1));
-        csUpcomingPage.setOnKeyListener((dialog,key,event)->{if((key==KeyEvent.KEYCODE_DPAD_LEFT||key==KeyEvent.KEYCODE_DPAD_RIGHT)&&csUpcomingList.hasFocus()){if(event.getAction()==KeyEvent.ACTION_DOWN&&event.getRepeatCount()==0)csChangeUpcomingDay(key==KeyEvent.KEYCODE_DPAD_RIGHT?1:-1);return true;}if(key==KeyEvent.KEYCODE_MENU){if(event.getAction()==KeyEvent.ACTION_DOWN&&event.getRepeatCount()==0)cs.refreshSchedule(true);return true;}return false;});
-        refreshCsUpcomingPage();cs.refreshSchedule(false);
+        csUpcomingPage.setOnKeyListener((dialog,key,event)->{if(csFooterArrow(csUpcomingPage,key,event))return true;if((key==KeyEvent.KEYCODE_DPAD_LEFT||key==KeyEvent.KEYCODE_DPAD_RIGHT)&&csUpcomingList.hasFocus()){if(event.getAction()==KeyEvent.ACTION_DOWN&&event.getRepeatCount()==0)csChangeUpcomingDay(key==KeyEvent.KEYCODE_DPAD_RIGHT?1:-1);return true;}if(key==KeyEvent.KEYCODE_MENU){if(event.getAction()==KeyEvent.ACTION_DOWN&&event.getRepeatCount()==0)cs.refreshSchedule(true);return true;}return false;});
+        refreshCsUpcomingPage();if(!csUpcomingRows.isEmpty())csUpcomingList.requestFocus();cs.refreshSchedule(false);
     }
     void refreshCsUpcomingPage(){
         if(cs==null||csUpcomingPage==null||!csUpcomingPage.isShowing())return;long now=System.currentTimeMillis(),selectedDay=CsSchedule.browseDay(csUpcomingDate,0,now);if(csUpcomingDate!=selectedDay){csUpcomingDate=selectedDay;csUpcomingLabels=null;}
-        java.util.List<CsMatch> rows=cs.upcoming(csUpcomingDate);String[] labels;boolean today=csUpcomingDate==CsSchedule.day(now,0);
-        if(rows.isEmpty()){String status=cs.scheduleBusy?"Checking the schedule...":!cs.scheduleFailure.isEmpty()?cs.scheduleFailure:CsSchedule.fresh(cs.scheduleAt,now)?today?"No more featured matches scheduled today":"No featured matches scheduled this day":"Schedule needs a refresh / Press Menu";labels=new String[]{status};}
-        else{boolean saved=!cs.scheduleFailure.isEmpty();labels=new String[rows.size()+(saved?1:0)];for(int i=0;i<rows.size();i++){CsMatch m=rows.get(i);labels[i]=m.a+" vs "+m.b+"\n"+m.event+" / "+csTime(m.start)+" / SCHEDULED";}if(saved)labels[rows.size()]="Saved schedule may be incomplete / Menu to refresh";}
+        java.util.List<CsMatch> rows=csFiltered(cs.upcoming(csUpcomingDate),true);String[] labels;boolean today=csUpcomingDate==CsSchedule.day(now,0);
+        if(rows.isEmpty()){String status=csMyTeams(true)&&cs.favorites.empty()?"No teams followed / Switch to All matches":cs.scheduleBusy?"Checking the schedule...":!cs.scheduleFailure.isEmpty()?cs.scheduleFailure:CsSchedule.fresh(cs.scheduleAt,now)?csMyTeams(true)?cs.favorites.empty()?"No teams followed / Switch to All matches":"No matches for your teams this day":today?"No more featured matches scheduled today":"No featured matches scheduled this day":"Schedule needs a refresh / Press Menu";labels=new String[]{status};}
+        else{boolean saved=!cs.scheduleFailure.isEmpty();labels=new String[rows.size()+(saved?1:0)];for(int i=0;i<rows.size();i++){CsMatch m=rows.get(i);labels[i]=csMatchNames(m)+"\n"+m.event+" / "+csTime(m.start)+" / SCHEDULED";}if(saved)labels[rows.size()]="Saved schedule may be incomplete / Menu to refresh";}
         csUpcomingPage.setTitle("Upcoming matches / "+csUpcomingDayLabel());int day=1;for(int i=1;i<CsSchedule.DAYS;i++)if(csUpcomingDate==CsSchedule.day(now,i))day=i+1;
         csUpcomingHint.setText("◀ / ▶ DAY "+day+" OF "+CsSchedule.DAYS+"   •   MENU "+(cs.scheduleBusy?"CHECKING...":"REFRESH"));
         csUpcomingPage.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(csUpcomingDate>CsSchedule.day(now,0));csUpcomingPage.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(csUpcomingDate<CsSchedule.day(now,CsSchedule.DAYS-1));
         if(Arrays.equals(csUpcomingLabels,labels)){csUpcomingRows=rows;return;}
-        ListView list=csUpcomingList;int selected=list.getSelectedItemPosition();long selectedId=selected>=0&&selected<csUpcomingRows.size()?csUpcomingRows.get(selected).id:0;csUpcomingRows=rows;csUpcomingLabels=labels;list.setAdapter(csRowsAdapter(labels,rows));ViewGroup.LayoutParams size=list.getLayoutParams();size.height=Math.round(getResources().getDisplayMetrics().density*Math.min(360,Math.max(100,rows.size()*76)));list.setLayoutParams(size);int focus=0;for(int i=0;i<rows.size();i++)if(rows.get(i).id==selectedId)focus=i;list.setSelection(focus);
+        ListView list=csUpcomingList;int selected=list.getSelectedItemPosition();long selectedId=selected>=0&&selected<csUpcomingRows.size()?csUpcomingRows.get(selected).id:0;csUpcomingRows=rows;csUpcomingLabels=labels;list.setAdapter(csRowsAdapter(labels,rows));ViewGroup.LayoutParams size=list.getLayoutParams();size.height=Math.round(getResources().getDisplayMetrics().density*Math.min(300,Math.max(100,rows.size()*76)));list.setLayoutParams(size);int focus=0;for(int i=0;i<rows.size();i++)if(rows.get(i).id==selectedId)focus=i;list.setSelection(focus);
     }
 
     void csResultDetails(CsMatch m){
         String summary=m.finalScore()?m.winner()+" won the series "+Math.max(m.one,m.two)+" - "+Math.min(m.one,m.two):"Finished / final series score unavailable";
-        AlertDialog detail=new AlertDialog.Builder(this).setTitle(csFinalLine(m)).setMessage(m.event+"\n\n"+summary+"\nFinished "+csTime(m.ended)+" / local time\n\nSource: BO3.gg").setNeutralButton("Highlights",null).setPositiveButton("Open match page",(d,n)->{closeSettings();CsWatch.open(this,m.page(),true);}).setNegativeButton("Back",null).create();showDialog(detail);detail.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v->csHighlights(m));
+        AlertDialog detail=new AlertDialog.Builder(this).setTitle(csFinalLine(m)).setMessage(m.event+"\n\n"+summary+"\nFinished "+csTime(m.ended)+" / local time\n\nSource: BO3.gg").setView(csFavoriteControls(m)).setNeutralButton("Highlights",null).setPositiveButton("Open match page",(d,n)->{closeSettings();CsWatch.open(this,m.page(),true);}).setNegativeButton("Back",null).create();showDialog(detail);detail.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v->csHighlights(m));
     }
     void csHighlights(CsMatch match){
         if(cs==null)return;ProgressDialog progress=new ProgressDialog(this);progress.setMessage("Checking official highlights...");progress.setCancelable(true);showDialog(progress);
@@ -422,23 +451,23 @@ public class MainActivity extends Activity {
     void csShowResults(){
         if(csResultsPage!=null&&csResultsPage.isShowing())return;csResultDate=CsResults.day(System.currentTimeMillis(),0);csResultLabels=null;
         int pad=Math.round(getResources().getDisplayMetrics().density*16);LinearLayout heading=new LinearLayout(this);heading.setOrientation(LinearLayout.VERTICAL);heading.setPadding(pad,0,pad,0);
-        csResultsHint=new TextView(this);csResultsHint.setTextSize(13);csResultsHint.setTextColor(0xff9aa9bd);csResultsHint.setPadding(0,pad/2,0,0);heading.addView(csResultsHint);csResultsList=new ListView(this);csResultsList.setAdapter(csRowsAdapter(new String[]{"Checking past matches..."},Collections.emptyList()));heading.addView(csResultsList,new LinearLayout.LayoutParams(-1,pad*7));
+        csResultsHint=new TextView(this);csResultsHint.setTextSize(13);csResultsHint.setTextColor(0xff9aa9bd);csResultsHint.setPadding(0,pad/2,0,0);csAddFilter(heading,csResultsHint,false);csResultsList=new ListView(this);csResultsList.setAdapter(csRowsAdapter(new String[]{"Checking past matches..."},Collections.emptyList()));heading.addView(csResultsList,new LinearLayout.LayoutParams(-1,pad*7));
         csResultsPage=new AlertDialog.Builder(this).setTitle("Past matches").setView(heading).setPositiveButton("Previous day",null).setNeutralButton("Next day",null).setNegativeButton("Back",null).create();showDialog(csResultsPage);
         csResultsList.setOnItemClickListener((parent,row,index,id)->{if(index<csResultRows.size())csResultDetails(csResultRows.get(index));});
         csResultsPage.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->csChangeResultDay(-1));csResultsPage.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v->csChangeResultDay(1));
-        csResultsPage.setOnKeyListener((dialog,key,event)->{if((key==KeyEvent.KEYCODE_DPAD_LEFT||key==KeyEvent.KEYCODE_DPAD_RIGHT)&&csResultsList.hasFocus()){if(event.getAction()==KeyEvent.ACTION_DOWN&&event.getRepeatCount()==0)csChangeResultDay(key==KeyEvent.KEYCODE_DPAD_RIGHT?1:-1);return true;}if(key==KeyEvent.KEYCODE_MENU){if(event.getAction()==KeyEvent.ACTION_DOWN&&event.getRepeatCount()==0)cs.refreshResults(true);return true;}return false;});
-        refreshCsResultsPage();cs.refreshResults(false);
+        csResultsPage.setOnKeyListener((dialog,key,event)->{if(csFooterArrow(csResultsPage,key,event))return true;if((key==KeyEvent.KEYCODE_DPAD_LEFT||key==KeyEvent.KEYCODE_DPAD_RIGHT)&&csResultsList.hasFocus()){if(event.getAction()==KeyEvent.ACTION_DOWN&&event.getRepeatCount()==0)csChangeResultDay(key==KeyEvent.KEYCODE_DPAD_RIGHT?1:-1);return true;}if(key==KeyEvent.KEYCODE_MENU){if(event.getAction()==KeyEvent.ACTION_DOWN&&event.getRepeatCount()==0)cs.refreshResults(true);return true;}return false;});
+        refreshCsResultsPage();if(!csResultRows.isEmpty())csResultsList.requestFocus();cs.refreshResults(false);
     }
     void refreshCsResultsPage(){
         if(cs==null||csResultsPage==null||!csResultsPage.isShowing())return;long now=System.currentTimeMillis(),selectedDay=CsResults.browseDay(csResultDate,0,now);if(selectedDay!=csResultDate){csResultDate=selectedDay;csResultLabels=null;}
-        java.util.List<CsMatch> rows=cs.results(csResultDate);String[] labels;boolean current=csResultDate==CsResults.day(now,0),fresh=CsResults.fresh(cs.resultsLog.checkedAt,now);
-        if(rows.isEmpty()){String status=cs.resultsBusy?"Checking past matches...":!cs.resultFailure.isEmpty()?cs.resultFailure:fresh?current?"No featured matches have finished today":"No featured matches finished this day":"Past matches need a refresh / Press Menu";labels=new String[]{status};}
+        java.util.List<CsMatch> rows=csFiltered(cs.results(csResultDate),false);String[] labels;boolean current=csResultDate==CsResults.day(now,0),fresh=CsResults.fresh(cs.resultsLog.checkedAt,now);
+        if(rows.isEmpty()){String status=csMyTeams(false)&&cs.favorites.empty()?"No teams followed / Switch to All matches":cs.resultsBusy?"Checking past matches...":!cs.resultFailure.isEmpty()?cs.resultFailure:fresh?csMyTeams(false)?cs.favorites.empty()?"No teams followed / Switch to All matches":"No finished matches for your teams this day":current?"No featured matches have finished today":"No featured matches finished this day":"Past matches need a refresh / Press Menu";labels=new String[]{status};}
         else{boolean saved=!cs.resultFailure.isEmpty()||!fresh&&!cs.resultsBusy;labels=new String[rows.size()+(saved?1:0)];for(int i=0;i<rows.size();i++){CsMatch m=rows.get(i);labels[i]=csFinalLine(m)+"\n"+m.event+" / FINAL / "+csTime(m.ended);}if(saved)labels[rows.size()]="Saved matches / Menu to check for more";}
         csResultsPage.setTitle("Past matches / "+csPastDayLabel());int day=CsResults.DAYS;for(int i=1;i<CsResults.DAYS;i++)if(csResultDate==CsResults.day(now,-i))day=CsResults.DAYS-i;
         csResultsHint.setText("◀ / ▶ DAY "+day+" OF "+CsResults.DAYS+"   •   MENU "+(cs.resultsBusy?"CHECKING...":"REFRESH"));
         csResultsPage.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(csResultDate>CsResults.day(now,1-CsResults.DAYS));csResultsPage.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(csResultDate<CsResults.day(now,0));
         if(Arrays.equals(csResultLabels,labels)){csResultRows=rows;return;}
-        ListView list=csResultsList;int selected=list.getSelectedItemPosition();long selectedId=selected>=0&&selected<csResultRows.size()?csResultRows.get(selected).id:0;csResultRows=rows;csResultLabels=labels;list.setAdapter(csRowsAdapter(labels,rows));ViewGroup.LayoutParams size=list.getLayoutParams();size.height=Math.round(getResources().getDisplayMetrics().density*Math.min(360,Math.max(100,rows.size()*76)));list.setLayoutParams(size);int focus=0;for(int i=0;i<rows.size();i++)if(rows.get(i).id==selectedId)focus=i;list.setSelection(focus);
+        ListView list=csResultsList;int selected=list.getSelectedItemPosition();long selectedId=selected>=0&&selected<csResultRows.size()?csResultRows.get(selected).id:0;csResultRows=rows;csResultLabels=labels;list.setAdapter(csRowsAdapter(labels,rows));ViewGroup.LayoutParams size=list.getLayoutParams();size.height=Math.round(getResources().getDisplayMetrics().density*Math.min(300,Math.max(100,rows.size()*76)));list.setLayoutParams(size);int focus=0;for(int i=0;i<rows.size();i++)if(rows.get(i).id==selectedId)focus=i;list.setSelection(focus);
     }
 
     ArrayAdapter<String> csRowsAdapter(String[] labels,java.util.List<CsMatch> rows){
@@ -450,20 +479,21 @@ public class MainActivity extends Activity {
                     row=new LinearLayout(MainActivity.this);row.setOrientation(LinearLayout.VERTICAL);int pad=Math.round(getResources().getDisplayMetrics().density*16);row.setPadding(pad,pad*3/4,pad,pad*3/4);row.setMinimumHeight(pad*4);
                     TextView title=new TextView(MainActivity.this),subtitle=new TextView(MainActivity.this);Typeface face=Typeface.create("monospace",Typeface.NORMAL);title.setTypeface(face);subtitle.setTypeface(face);title.setTextSize(22);subtitle.setTextSize(14);title.setTextColor(0xffe5ebf5);subtitle.setTextColor(0xff9aa9bd);title.setSingleLine(true);subtitle.setSingleLine(true);title.setEllipsize(android.text.TextUtils.TruncateAt.END);subtitle.setEllipsize(android.text.TextUtils.TruncateAt.END);row.addView(title);row.addView(subtitle);
                 }
-                String value=getItem(position);int newline=value.indexOf('\n');((TextView)row.getChildAt(0)).setText(newline<0?value:value.substring(0,newline));TextView subtitle=(TextView)row.getChildAt(1);subtitle.setText(newline<0?"":value.substring(newline+1));subtitle.setVisibility(newline<0?View.GONE:View.VISIBLE);return row;
+                String value=getItem(position);int newline=value.indexOf('\n');((TextView)row.getChildAt(0)).setText(csStarText(newline<0?value:value.substring(0,newline)));TextView subtitle=(TextView)row.getChildAt(1);subtitle.setText(newline<0?"":value.substring(newline+1));subtitle.setVisibility(newline<0?View.GONE:View.VISIBLE);return row;
             }
         };
     }
     void csOptions(){
-        menu("Live Counter-Strike",new String[]{"Upcoming matches","Past matches","Refresh live matches","Open CS match listings","About this feed"},(d,n)->{
+        menu("Live Counter-Strike",new String[]{"Upcoming matches","Past matches","Team favorites","Refresh live matches","Open CS match listings","About this feed"},(d,n)->{
             if(n==0)csShowUpcoming();
             else if(n==1)csShowResults();
-            else if(n==2){cs.refresh(true);cs.refreshResults(true);cs.refreshSchedule(true);closeSettings();Toast.makeText(this,"Checking live matches",Toast.LENGTH_SHORT).show();}
-            else if(n==3){closeSettings();CsWatch.open(this,"https://bo3.gg/matches/current",true);}
+            else if(n==2)csTeamFavorites(null);
+            else if(n==3){cs.refresh(true);cs.refreshResults(true);cs.refreshSchedule(true);closeSettings();Toast.makeText(this,"Checking live matches",Toast.LENGTH_SHORT).show();}
+            else if(n==4){closeSettings();CsWatch.open(this,"https://bo3.gg/matches/current",true);}
             else showDialog(new AlertDialog.Builder(this).setTitle("Live CS / BO3").setMessage("Match and broadcast data: BO3.gg. HLTV blocked direct access during setup.\n\nOnly current matches at prominent events are shown. LIVE labels expire after three minutes without a successful check.\n\nRight opens this section; Left returns to your apps. OK watches; Menu offers verified organizer streams.").setPositiveButton("Back",null).create());
         });
     }
-    void csNext(){CsMatch m=cs.next();if(m==null){cs.refreshSchedule(true);csOptions();return;}showDialog(new AlertDialog.Builder(this).setTitle(m.event).setMessage(m.a+" vs "+m.b+"\n"+csTime(m.start)+" / local time\n\nScheduled today / not confirmed live.").setPositiveButton("Open match page",(d,n)->{closeSettings();CsWatch.open(this,m.page(),true);}).setNegativeButton("Back",null).create());}
+    void csNext(){CsMatch m=cs.next();if(m==null){cs.refreshSchedule(true);csOptions();return;}showDialog(new AlertDialog.Builder(this).setTitle(m.event).setMessage(m.a+" vs "+m.b+"\n"+csTime(m.start)+" / local time\n\nScheduled today / not confirmed live.").setView(csFavoriteControls(m)).setPositiveButton("Open match page",(d,n)->{closeSettings();CsWatch.open(this,m.page(),true);}).setNegativeButton("Back",null).create());}
     void csResolve(boolean alternatives){
         if(csUpcomingFocus){csShowUpcoming();return;}
         if(csResultFocus){csShowResults();return;}
@@ -473,11 +503,11 @@ public class MainActivity extends Activity {
         cs.resolve(requested,alternatives,(match,streams,error)->{
             boolean showing=progress.isShowing();progress.dismiss();if(!showing||!active||isDestroyed())return;
             if(error!=null||streams.isEmpty()){
-                showDialog(new AlertDialog.Builder(this).setTitle(error==null?"Stream unavailable":"Live match check").setMessage((error==null?"No match broadcast could be resolved.":error)+"\n\nYou can open the match page to check its broadcast links.").setPositiveButton("Open match page",(d,n)->{closeSettings();CsWatch.open(this,match.page(),true);}).setNegativeButton("Back",null).create());return;
+                showDialog(new AlertDialog.Builder(this).setTitle(error==null?"Stream unavailable":"Live match check").setMessage((error==null?"No match broadcast could be resolved.":error)+"\n\nYou can open the match page to check its broadcast links.").setView(csFavoriteControls(match)).setPositiveButton("Open match page",(d,n)->{closeSettings();CsWatch.open(this,match.page(),true);}).setNegativeButton("Back",null).create());return;
             }
             if(!alternatives){closeSettings();if(!CsWatch.open(this,streams.get(0).url,false))Toast.makeText(this,"The broadcast could not open",Toast.LENGTH_LONG).show();return;}
-            String[] labels=new String[streams.size()+1];for(int i=0;i<streams.size();i++)labels[i]=streams.get(i).label();labels[streams.size()]="Open match page / browser";
-            menu("Match broadcasts",labels,(d,n)->{closeSettings();if(n==streams.size())CsWatch.open(this,match.page(),true);else CsWatch.open(this,streams.get(n).url,false);});
+            String[] labels=new String[streams.size()+2];for(int i=0;i<streams.size();i++)labels[i]=streams.get(i).label();labels[streams.size()]="Team favorites";labels[streams.size()+1]="Open match page / browser";
+            menu("Match broadcasts",labels,(d,n)->{if(n==streams.size()){csTeamFavorites(match);return;}closeSettings();if(n==streams.size()+1)CsWatch.open(this,match.page(),true);else CsWatch.open(this,streams.get(n).url,false);});
         });
     }
     public boolean onKeyDown(int key,KeyEvent ev){
@@ -615,12 +645,12 @@ public class MainActivity extends Activity {
             if(rows.isEmpty()){
                 csCard(c,383,csFocused&&!csResultFocus&&!csUpcomingFocus);boolean verified=cs.verified();String title=verified?"NO MAJOR CS MATCHES LIVE":cs.busy?"CHECKING LIVE MATCHES":"LIVE STATUS UNAVAILABLE";
                 dots(c,title,677,398,14,verified?0xffb0bdcc:0xffb8a68d,false);CsMatch next=cs.next();
-                if(next!=null){csLogo(c,next.logoEvent,next.event,677,425,24);dots(c,fit("NEXT TODAY: "+next.a+" VS "+next.b,453,13),710,427,13,0xffa9b8c9,false);dots(c,fit(next.event+" / "+csTime(next.start),453,10),710,451,10,0xff748297,false);}
+                if(next!=null){csLogo(c,next.logoEvent,next.event,677,425,24);dots(c,fit("NEXT TODAY: "+csMatchNames(next),453,13),710,427,13,0xffa9b8c9,false);dots(c,fit(next.event+" / "+csTime(next.start),453,10),710,451,10,0xff748297,false);}
                 else dots(c,verified?"CHECK BACK LATER":cs.failure.isEmpty()?(cs.busy?"LOADING MATCH DATA":cs.liveAt>0?"LAST CHECK EXPIRED / MENU TO RETRY":"MENU TO RETRY"):cs.failure.toUpperCase(Locale.US)+" / MENU TO RETRY",677,435,11,0xff768599,false);
             }else for(int i=0;i<rows.size();i++){
                 CsMatch m=rows.get(i);float y=383+i*106;boolean focus=csFocused&&!csResultFocus&&!csUpcomingFocus&&csSelected==i;csCard(c,y,focus);csLogo(c,m.logoEvent,m.event,677,y+13,21);
                 dots(c,fit(m.event,390,13),710,y+17,13,0xffa7b4c5,false);p.setColor(0xff72343b);c.drawRoundRect(1126,y+11,1175,y+31,4,4,p);dots(c,"LIVE",1134,y+17,10,0xffffb2ad,false);
-                csLogo(c,m.logoA,m.a,677,y+40,22);dots(c,fit(m.a,170,18),710,y+45,18,0xffdbe2ec,false);dots(c,"VS",895,y+48,10,0xff657387,false);csLogo(c,m.logoB,m.b,926,y+40,22);dots(c,fit(m.b,210,18),959,y+45,18,0xffdbe2ec,false);
+                csLogo(c,m.logoA,m.a,677,y+40,22);dots(c,fit(csTeamName(m.teamIdA,m.a),170,18),710,y+45,18,cs.favorites.contains(m.teamIdA,m.a)?CS_ACCENT:0xffdbe2ec,false);dots(c,"VS",895,y+48,10,0xff657387,false);csLogo(c,m.logoB,m.b,926,y+40,22);dots(c,fit(csTeamName(m.teamIdB,m.b),210,18),959,y+45,18,cs.favorites.contains(m.teamIdB,m.b)?CS_ACCENT:0xffdbe2ec,false);
                 String score=m.one>=0&&m.two>=0?"MAPS "+m.one+" - "+m.two:"SERIES SCORE UNAVAILABLE";dots(c,score+(m.bo>0?" / BO"+m.bo:""),710,y+76,10,0xff8d9eb2,false);if(focus)dots(c,"OK WATCH",1175,y+76,10,0xffe0b68b,true);
             }
             int upcoming=cs.upcoming().size();String resultRange=pastMatchRange();String upcomingCount=upcoming>0?upcoming+" TODAY":cs.scheduleBusy?"CHECKING":cs.scheduleFailure.isEmpty()?"VIEW":"RETRY";

@@ -12,8 +12,10 @@ import org.json.*;
 
 /** Direct public BO3 feed. Main-thread state; bounded network/JSON work on one worker. */
 final class CsFeed {
+    static final int LIVE_RECORDS=100,LIVE_CACHE_BYTES=262144;
     static final String API="https://api.bo3.gg/api/v1/";
-    final Context context;final Runnable changed;final CsPolicy policy;final CsBroadcasts broadcasts;
+    final Context context;final Runnable changed;final CsPolicy policy;final CsBroadcasts broadcasts;final CsFavorites favorites;
+    java.util.List<CsMatch> liveSource,liveView=Collections.emptyList();int liveRevision=-1;
     final LinkedHashMap<String,String> youtubeAuthors=new LinkedHashMap<>();
     final ExecutorService resultWorker=Executors.newSingleThreadExecutor();final CsResults resultsLog=new CsResults();boolean resultsBusy;long resultAttempt=-600000;int resultFailures;String resultFailure="";
     java.util.List<CsMatch> schedule=Collections.emptyList();boolean scheduleBusy;long scheduleAt,scheduleAttempt=-600000;int scheduleFailures;String scheduleFailure="";
@@ -26,9 +28,9 @@ final class CsFeed {
     final Runnable expire=()->expired();
     void expired(){if(visible)changed.run();}
     interface Resolved {void done(CsMatch match,java.util.List<CsStream> streams,String error);}
-    CsFeed(Context c,Runnable update){context=c;changed=update;CsPolicy p;
+    CsFeed(Context c,Runnable update){context=c;changed=update;favorites=new CsFavorites(c.getSharedPreferences("quiet",Context.MODE_PRIVATE).getString("csFavoriteTeams","[]"));CsPolicy p;
         try{int id=c.getResources().getIdentifier("cs_policy","raw",c.getPackageName());try(InputStream in=c.getResources().openRawResource(id)){p=new CsPolicy(new JSONObject(read(in,16384)));}}catch(Exception e){p=new CsPolicy(new JSONObject());}policy=p;CsBroadcasts b;try{int id=c.getResources().getIdentifier("cs_broadcasters","raw",c.getPackageName());try(InputStream in=c.getResources().openRawResource(id)){b=new CsBroadcasts(new JSONObject(read(in,16384)));}}catch(Exception e){b=new CsBroadcasts(new JSONObject());}broadcasts=b;loadResults();loadSchedule();
-        worker.execute(()->{try{File file=new File(context.getFilesDir(),"cs-feed.json");if(!file.exists()||file.length()>32768)return;JSONObject j;try(InputStream in=new FileInputStream(file)){j=new JSONObject(read(in,32768));}ArrayList<CsMatch> saved=new ArrayList<>();JSONArray a=j.optJSONArray("matches");if(a!=null)for(int i=0;i<Math.min(policy.cards,a.length());i++){CsMatch m=CsMatch.read(a.getJSONObject(i));if(policy.accepts(m,m.eventId)&&policy.live(m,System.currentTimeMillis()))saved.add(m);}post(()->{if(liveAt==0){matches=saved;liveAt=j.optLong("liveAt",0);notifyChange();}});}catch(Exception ignored){}});
+        worker.execute(()->{try{File file=new File(context.getFilesDir(),"cs-feed.json");if(!file.exists()||file.length()>LIVE_CACHE_BYTES)return;JSONObject j;try(InputStream in=new FileInputStream(file)){j=new JSONObject(read(in,LIVE_CACHE_BYTES));}ArrayList<CsMatch> saved=new ArrayList<>();JSONArray a=j.optJSONArray("matches");if(a!=null)for(int i=0;i<Math.min(LIVE_RECORDS,a.length());i++){CsMatch m=CsMatch.read(a.getJSONObject(i));if(policy.accepts(m,m.eventId)&&policy.live(m,System.currentTimeMillis()))saved.add(m);}post(()->{if(liveAt==0){matches=saved;liveAt=j.optLong("liveAt",0);notifyChange();}});}catch(Exception ignored){}});
     }
     java.util.List<CsMatch> results(){return resultsLog.rows(System.currentTimeMillis());}
     java.util.List<CsMatch> results(long selected){return resultsLog.rowsForDay(System.currentTimeMillis(),selected);}
@@ -61,7 +63,7 @@ final class CsFeed {
     }
     static String resultsListing(int offset){return "matches?scope=widget-matches&page%5Boffset%5D="+offset+"&page%5Blimit%5D=100&sort=-end_date&filter%5Bmatches.status%5D%5Bin%5D=finished&filter%5Bmatches.discipline_id%5D%5Beq%5D=1&with=teams,tournament";}
     void post(Runnable r){handler.post(()->{if(!closed)r.run();});}
-    java.util.List<CsMatch> live(){if(!CsPolicy.fresh(liveAt,System.currentTimeMillis(),policy.expiry))return Collections.emptyList();return matches;}
+    java.util.List<CsMatch> live(){if(!CsPolicy.fresh(liveAt,System.currentTimeMillis(),policy.expiry))return Collections.emptyList();if(liveSource!=matches||liveRevision!=favorites.revision){liveView=favorites.prioritize(matches,policy.cards);liveSource=matches;liveRevision=favorites.revision;}return liveView;}
     CsMatch next(){return CsSchedule.next(schedule,scheduleAt,System.currentTimeMillis(),policy);}
     boolean verified(){return CsPolicy.fresh(liveAt,System.currentTimeMillis(),policy.expiry);}
     void resume(){visible=true;refresh(false);refreshResults(false);refreshSchedule(false);notifyChange();}
@@ -75,13 +77,13 @@ final class CsFeed {
         worker.execute(()->{
             try{
                 java.util.List<CsMatch> all=CsParser.list(fetch(listing("current",0)),"current",System.currentTimeMillis(),policy);
-                final java.util.List<CsMatch> live=new ArrayList<>(all.subList(0,Math.min(policy.cards,all.size())));final long observed=System.currentTimeMillis();
-                post(()->{boolean lost=false;for(CsMatch old:matches){boolean found=false;for(CsMatch row:live)if(row.id==old.id)found=true;if(!found)lost=true;}matches=live;resultsLog.remember(live,System.currentTimeMillis());saveResults();if(lost)refreshResults(true);liveAt=observed;failure="";failures=0;busy=false;notifyChange();save();});
+                final java.util.List<CsMatch> live=new ArrayList<>(all.subList(0,Math.min(LIVE_RECORDS,all.size())));final long observed=System.currentTimeMillis();
+                post(()->{boolean lost=false;for(CsMatch old:matches){boolean found=false;for(CsMatch row:live)if(row.id==old.id)found=true;if(!found)lost=true;}matches=live;liveAt=observed;resultsLog.remember(live(),System.currentTimeMillis());saveResults();if(lost)refreshResults(true);liveAt=observed;failure="";failures=0;busy=false;notifyChange();save();});
             }catch(Exception e){post(()->{busy=false;failures++;failure=e instanceof IOException&&e.getMessage()!=null&&e.getMessage().contains("structure")?"Match source changed":"Connection unavailable";notifyChange();});}
         });
     }
     static String listing(String status,int offset){return "matches?scope=widget-matches&page%5Boffset%5D="+offset+"&page%5Blimit%5D=100&sort=start_date&filter%5Bmatches.status%5D%5Bin%5D="+status+"&filter%5Bmatches.discipline_id%5D%5Beq%5D=1&with=teams,tournament,streams";}
-    void save(){try{JSONObject j=new JSONObject().put("liveAt",liveAt);JSONArray a=new JSONArray();for(CsMatch m:matches)a.put(m.cache());j.put("matches",a);final String body=j.toString();worker.execute(()->{try{File temp=new File(context.getFilesDir(),"cs-feed.tmp"),file=new File(context.getFilesDir(),"cs-feed.json");try(Writer w=new OutputStreamWriter(new FileOutputStream(temp),"UTF-8")){w.write(body);}if(!temp.renameTo(file))temp.delete();}catch(Exception ignored){}});}catch(Exception ignored){}}
+    void save(){try{JSONObject j=new JSONObject().put("liveAt",liveAt);JSONArray a=new JSONArray();for(CsMatch m:matches)a.put(m.cache());j.put("matches",a);final String body=j.toString();if(body.getBytes("UTF-8").length>LIVE_CACHE_BYTES)return;worker.execute(()->{try{File temp=new File(context.getFilesDir(),"cs-feed.tmp"),file=new File(context.getFilesDir(),"cs-feed.json");try(Writer w=new OutputStreamWriter(new FileOutputStream(temp),"UTF-8")){w.write(body);}if(!temp.renameTo(file))temp.delete();}catch(Exception ignored){}});}catch(Exception ignored){}}
     void resolve(CsMatch requested,boolean alternatives,Resolved callback){
         if(opening||closed)return;opening=true;changed.run();worker.execute(()->{try{JSONObject detail=new JSONObject(fetch("matches/"+requested.slug));if(!"current".equals(detail.optString("status",""))){post(()->{opening=false;ArrayList<CsMatch> kept=new ArrayList<>(matches);kept.removeIf(old->old.id==requested.id);matches=kept;refreshResults(true);notifyChange();callback.done(requested,Collections.emptyList(),"This match is no longer confirmed live");refresh(true);});return;}CsMatch m=CsMatch.read(detail);if(m.id!=requested.id||!policy.live(m,System.currentTimeMillis())||!policy.accepts(m,m.eventId)){post(()->{opening=false;ArrayList<CsMatch> kept=new ArrayList<>(matches);kept.removeIf(old->old.id==requested.id);matches=kept;refreshResults(true);notifyChange();callback.done(requested,Collections.emptyList(),"This match is no longer confirmed live");refresh(true);});return;}java.util.List<CsStream> listed=CsStream.read(detail,m.id);HashMap<String,String> authors=new HashMap<>();java.util.List<CsStream> chosen=broadcasts.select(listed,m.event,authors);if(broadcasts.known(m.event)&&(alternatives||chosen.isEmpty())){int attempts=0;for(CsStream candidate:listed){if(!CsBroadcasts.youtubeVideo(candidate.url))continue;if(attempts++>=2)break;try{authors.put(candidate.url,youtubeAuthor(candidate.url));}catch(Exception ignored){}}chosen=broadcasts.select(listed,m.event,authors);}final java.util.List<CsStream> streams=chosen;post(()->{opening=false;callback.done(m,streams,streams.isEmpty()?"No organizer broadcast could be verified for this match":null);});}catch(Exception e){post(()->{opening=false;callback.done(requested,Collections.emptyList(),"Could not verify this match's broadcast");});}});
     }

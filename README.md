@@ -60,6 +60,8 @@ These are captures from the TV. Sunrise and sunset use the app's built-in sky pr
 
 Counter-Strike is **off by default and absent from first-time setup**. Enable it later in **Settings → Widgets → Counter-Strike (optional)**. Its feed is not created or polled while disabled. When enabled, compact cards show notable live matches, series scores, and a route to the verified organizer broadcast. Upcoming Matches browses today and the following six days in local time. Within the match list, use Left/Right to change the day and Up/Down to scroll matches. On the bottom row, Left/Right moves between Previous day, Next day, and Back; press OK to activate a button. Menu refreshes the schedule. The home-screen NEXT TODAY suggestion stays limited to today. Past matches browses today and the previous three local dates, including eligible matches missed while the TV was off. The same list and bottom-button controls apply; Menu refreshes results. Select a final score, then Highlights, to check the reviewed PGL, ESL, or BLAST highlights channel for that matchup. A verified upload opens in YouTube; an unavailable match offers an explicitly labeled official-channel search.
 
+Follow teams from **Team favorites** in match details or the CS options menu. Favorite teams get amber stars and priority within the existing two live cards. Upcoming and Past matches offer **All matches / My teams** filters while preserving their date order. Favorites start empty, stay on the device, and add no polling or accounts.
+
 <details>
 <summary>See the optional match-results view</summary>
 

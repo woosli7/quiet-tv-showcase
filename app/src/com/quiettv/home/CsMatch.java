@@ -7,7 +7,7 @@ import org.json.*;
 
 /** Small normalized records; no betting data or raw provider responses are persisted. */
 final class CsMatch {
-    long id,start,prize,eventId;int tier,stars,one=-1,two=-1,bo;
+    long id,start,prize,eventId,teamIdA,teamIdB;int tier,stars,one=-1,two=-1,bo;
     String slug="",event="",a="",b="",status="",logoA="",logoB="",logoEvent=""; long ended;
     String page(){return "https://bo3.gg/matches/"+slug;}
     static long time(String text){try{String value=text.replaceFirst("\\.\\d+(?=[Z+-])","").replaceFirst("Z$","+0000").replaceFirst("([+-]\\d{2}):(\\d{2})$","$1$2");SimpleDateFormat f=new SimpleDateFormat("yyyy-MM-dd\u0027T\u0027HH:mm:ssZ",Locale.US);f.setLenient(false);java.text.ParsePosition p=new java.text.ParsePosition(0);Date date=f.parse(value,p);return date!=null&&p.getIndex()==value.length()?date.getTime():0;}catch(Exception ignored){return 0;}}
@@ -15,7 +15,7 @@ final class CsMatch {
         CsMatch m=new CsMatch();m.id=j.optLong("id",0);m.slug=j.optString("slug","");m.status=j.optString("status","");m.start=time(j.optString("start_date",""));m.ended=time(j.optString("end_date",""));
         if(m.id<=0||!m.slug.matches("[a-zA-Z0-9_-]{1,180}")||j.optInt("discipline_id",0)!=1||!(m.status.equals("current")||m.status.equals("upcoming")||m.status.equals("finished")))throw new JSONException("Match structure changed");
         JSONObject t=j.getJSONObject("tournament"),a=j.getJSONObject("team1"),b=j.getJSONObject("team2");
-        m.eventId=t.optLong("id",0);m.event=clean(t.optString("name",""));m.a=clean(a.optString("name",""));m.b=clean(b.optString("name",""));
+        m.teamIdA=Math.max(0,a.optLong("id",0));m.teamIdB=Math.max(0,b.optLong("id",0));m.eventId=t.optLong("id",0);m.event=clean(t.optString("name",""));m.a=clean(a.optString("name",""));m.b=clean(b.optString("name",""));
         if(m.event.isEmpty()||m.a.isEmpty()||m.b.isEmpty()||m.start<=0)throw new JSONException("Match details incomplete");
         m.tier=t.optInt("tier_rank",0);m.prize=t.optLong("prize",0);m.stars=j.optInt("stars",0);m.bo=j.optInt("bo_type",0);
         if(!j.isNull("team1_score")&&!j.isNull("team2_score")){int x=j.optInt("team1_score",-1),y=j.optInt("team2_score",-1);int max=m.bo>=1&&m.bo<=7?(m.bo+1)/2:0;if(x>=0&&y>=0&&x<=max&&y<=max&&max>0){m.one=x;m.two=y;}}
@@ -26,7 +26,7 @@ final class CsMatch {
     static String clean(String text){String clean=text.replaceAll("[\\p{Cntrl}]"," ").trim();return clean.substring(0,Math.min(100,clean.length()));}
     static String image(String s){try{URI u=URI.create(s);return "https".equals(u.getScheme())&&"files.bo3.gg".equalsIgnoreCase(u.getHost())&&u.getUserInfo()==null?s:"";}catch(Exception ignored){return "";}}
     static String stamp(long time){SimpleDateFormat f=new SimpleDateFormat("yyyy-MM-dd\u0027T\u0027HH:mm:ss\u0027Z\u0027",Locale.US);f.setTimeZone(TimeZone.getTimeZone("UTC"));return f.format(new Date(time));}
-    JSONObject cache() throws JSONException{return new JSONObject().put("id",id).put("slug",slug).put("status",status).put("start_date",stamp(start)).put("end_date",ended>0?stamp(ended):JSONObject.NULL).put("discipline_id",1).put("bo_type",bo).put("stars",stars).put("team1_score",one).put("team2_score",two).put("tournament",new JSONObject().put("id",eventId).put("name",event).put("tier_rank",tier).put("prize",prize).put("image_url",logoEvent)).put("team1",new JSONObject().put("name",a).put("image_url",logoA)).put("team2",new JSONObject().put("name",b).put("image_url",logoB));}
+    JSONObject cache() throws JSONException{return new JSONObject().put("id",id).put("slug",slug).put("status",status).put("start_date",stamp(start)).put("end_date",ended>0?stamp(ended):JSONObject.NULL).put("discipline_id",1).put("bo_type",bo).put("stars",stars).put("team1_score",one).put("team2_score",two).put("tournament",new JSONObject().put("id",eventId).put("name",event).put("tier_rank",tier).put("prize",prize).put("image_url",logoEvent)).put("team1",new JSONObject().put("id",teamIdA).put("name",a).put("image_url",logoA)).put("team2",new JSONObject().put("id",teamIdB).put("name",b).put("image_url",logoB));}
 }
 final class CsPolicy {
     final int cards,topTier,secondTier;final long refresh,expiry,schedule,maxDuration,secondPrize,unknownPrize;final Pattern known,excluded;final Set<Long> include=new HashSet<>(),exclude=new HashSet<>();

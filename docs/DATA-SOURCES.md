@@ -33,6 +33,16 @@ The full window is fetched asynchronously through the existing schedule worker, 
 
 The home card's NEXT TODAY suggestion uses that same fresh upcoming list, its prominence rules, and its local-day boundaries. It never substitutes a match from a later date. Old feed-cache next entries are ignored, and there is no separate next-match network request.
 
+### Team favorites
+
+Team favorites are optional local preferences, initially empty. Up to 32 team IDs/names are stored in the app's private settings with a 16 KiB input bound. Provider team IDs take precedence, preventing separate teams with matching display names from colliding. Older ID-less cached matches use full normalized names and a few explicit aliases, including NAVI/Natus Vincere; substring matching is not used. Named rosters such as NAVI Junior remain separate. Favorites survive restarts and disabling/re-enabling the CS widget.
+
+The live retrieval keeps up to 100 policy-eligible normalized current records, with a 256 KiB disk-cache bound. Favorites are promoted before applying the unchanged two-card cap; ties preserve the source's existing tournament ranking. The rendered ordering is cached until match data or favorite preferences change. Normal LIVE expiry, completion checks, prominence exclusions, and verified broadcast selection remain in force. Favorites never make an upcoming, expired, or excluded match LIVE.
+
+Upcoming and Past match lists retain chronological date order, decorate followed teams with amber stars, and offer separate persistent All matches / My teams controls. Filtering uses already-loaded records; it issues no additional match requests. Empty favorites, an empty filtered date, and retrieval failures have distinct states. Saved favorites remain manageable even when their teams are absent from the current dates. The picker uses teams from cached/current matches and saved favorites, bounded to 96 choices; it does not call a separate team-search API.
+
+Team controls are available in scheduled/final match details and the live broadcast alternatives menu. Highlights and match-page actions remain available. Date arrows apply to the list; footer arrows stay among enabled bottom buttons, including at the row ends. Returning from details restores list focus and selection. There are no new background workers, timers, accounts, notifications, or light effects for this feature.
+
 ### Match highlights
 
 Past matches → a match score → Highlights checks only the organizer highlights channels reviewed in `app/res/raw/cs_highlights.json`: [PGL Counter-Strike Highlights](https://www.youtube.com/@Counter_Strike_Highlights), [ESL Counter-Strike Highlights](https://www.youtube.com/@ESLCSHighlights), and [BLAST Premier CS2 Highlights](https://www.youtube.com/@BLASTPremierHighlights). Rules and team aliases are editable without changing the lookup code. Other organizers have an explicit match-page fallback.
