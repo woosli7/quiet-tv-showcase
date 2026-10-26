@@ -17,7 +17,7 @@ Skipping the city lets setup finish without an internet connection and defaults 
 
 ## Widget behavior
 
-Greeting, clock/date, and weather switches affect both the home and idle screens. The optional CS switch controls its entire section, including live cards, upcoming matches, and today's results. Its feed/client/workers are created only while enabled. Disabling it closes those workers and removes its remote-focus targets. An in-flight network operation may finish within its timeout; interrupted pagination cannot start another request.
+Greeting, clock/date, and weather switches affect both the home and idle screens. The optional CS switch controls its entire section, including live cards, upcoming matches, and past matches. Its feed/client/workers are created only while enabled. Disabling it closes those workers and removes its remote-focus targets. An in-flight network operation may finish within its timeout; interrupted pagination cannot start another request.
 
 The Home/app-return helper starts off. It is configured separately through its existing setting and ADB permission grant. Neither setup nor widget selection grants system permissions.
 
