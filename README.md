@@ -18,7 +18,7 @@ App-inspired colors and logos respond as you browse, while an idle display shift
 - **Widget controls.** Show or hide greeting, clock/date, and weather on the home and idle screens. Optional extras are enabled separately in Settings → Widgets.
 - **Your apps, your order.** Show the installed apps you use, rearrange their order, and launch them with the remote.
 - **Responsive app themes.** Supported apps display their own colors and dotted brand-inspired logos when highlighted.
-- **Quiet menus.** Dark panels, compact readable rows, subtle amber focus outlines, and full labels that wrap instead of cutting off.
+- **Quiet menus.** Dark panels, compact readable rows, subtle amber text focus, and full labels that wrap instead of cutting off.
 - **Personal appearance.** Customize the greeting, choose a clean terminal or dot-matrix type style, and adjust the menu's appearance.
 - **Clock, weather, and an ambient idle display.** Keep useful information visible against a desert sky that follows seasonal sunrise, sunset, and the time of day.
 - **Optional smart lighting.** Match compatible Govee lights to the selected app, choose color palettes, or switch between controller-run effects. The current integration targets the H6097.

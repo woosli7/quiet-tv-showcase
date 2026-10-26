@@ -14,24 +14,17 @@ final class MenuStyle {
         GradientDrawable drawable=new GradientDrawable();drawable.setColor(fill);drawable.setCornerRadius(dp(view,radius));
         if(stroke!=0)drawable.setStroke(dp(view,1),stroke);return drawable;
     }
-    static StateListDrawable focus(View view){
-        StateListDrawable states=new StateListDrawable();
-        states.addState(new int[]{-android.R.attr.state_enabled},shape(view,0xff121923,0xff242d3a,6));
-        states.addState(new int[]{android.R.attr.state_pressed},shape(view,0xff3b3029,AMBER,6));
-        states.addState(new int[]{android.R.attr.state_focused},shape(view,0xff2b2828,AMBER,6));
-        states.addState(new int[]{android.R.attr.state_selected},shape(view,0xff2b2828,AMBER,6));
-        states.addState(new int[]{},shape(view,0xff171f2c,EDGE,6));return states;
-    }
     static ColorStateList colors(){return new ColorStateList(new int[][]{{-android.R.attr.state_enabled},{android.R.attr.state_focused},{android.R.attr.state_selected},{}},new int[]{0xff526071,0xffffd1a4,0xffffd1a4,TEXT});}
     static void text(TextView text){
         text.setTypeface(Typeface.create("monospace",Typeface.NORMAL));text.setTextSize("quiet-caption".equals(text.getTag())?12:16);text.setTextColor("quiet-caption".equals(text.getTag())?MUTED:TEXT);text.setIncludeFontPadding(false);text.setLineSpacing(dp(text,2),1);
     }
     static void button(Button button){
-        text(button);button.setTextSize(13);button.setAllCaps(false);button.setTextColor(colors());button.setBackground(focus(button));
+        text(button);button.setTextSize(13);button.setAllCaps(false);button.setTextColor(colors());button.setBackground(shape(button,0xff171f2c,EDGE,6));
         button.setMinHeight(dp(button,40));button.setMinimumHeight(dp(button,40));button.setMinWidth(dp(button,76));button.setMinimumWidth(dp(button,76));
         button.setPadding(dp(button,14),dp(button,10),dp(button,14),dp(button,10));button.setStateListAnimator(null);
     }
     static void row(View row){
+        row.setBackgroundColor(Color.TRANSPARENT);row.setStateListAnimator(null);
         if(row instanceof TextView){TextView text=(TextView)row;text(text);text.setTextColor(colors());text.setMinHeight(dp(row,46));text.setMinimumHeight(dp(row,46));text.setGravity(Gravity.CENTER_VERTICAL);text.setPadding(dp(row,14),dp(row,12),dp(row,14),dp(row,12));if(text instanceof CheckedTextView)((CheckedTextView)text).setCheckMarkTintList(new ColorStateList(new int[][]{{android.R.attr.state_checked},{}},new int[]{AMBER,MUTED}));}
         else if(row instanceof LinearLayout){
             LinearLayout group=(LinearLayout)row;row.setMinimumHeight(dp(row,58));row.setPadding(dp(row,14),dp(row,11),dp(row,14),dp(row,11));
@@ -39,13 +32,13 @@ final class MenuStyle {
         }
     }
     static void list(ListView list){
-        list.setSelector(focus(list));list.setDrawSelectorOnTop(false);list.setDivider(new ColorDrawable(Color.TRANSPARENT));list.setDividerHeight(dp(list,4));list.setPadding(0,dp(list,3),0,dp(list,3));list.setClipToPadding(false);
+        list.setSelector(new ColorDrawable(Color.TRANSPARENT));list.setDrawSelectorOnTop(false);list.setDivider(new ColorDrawable(Color.TRANSPARENT));list.setDividerHeight(dp(list,4));list.setPadding(0,dp(list,3),0,dp(list,3));list.setClipToPadding(false);
         for(int i=0;i<list.getChildCount();i++)row(list.getChildAt(i));
     }
     static void view(View view){
         view.setAlpha(1f);
         if(view instanceof ListView){list((ListView)view);return;}
-        if(view instanceof CompoundButton){CompoundButton box=(CompoundButton)view;text(box);box.setButtonTintList(new ColorStateList(new int[][]{{android.R.attr.state_checked},{}},new int[]{AMBER,MUTED}));}
+        if(view instanceof CompoundButton){CompoundButton box=(CompoundButton)view;text(box);box.setTextColor(colors());box.setBackgroundColor(Color.TRANSPARENT);box.setStateListAnimator(null);box.setButtonTintList(new ColorStateList(new int[][]{{android.R.attr.state_checked},{}},new int[]{AMBER,MUTED}));}
         else if(view instanceof Button)button((Button)view);
         else if(view instanceof EditText){TextView text=(TextView)view;text(text);text.setHintTextColor(MUTED);text.setBackgroundTintList(ColorStateList.valueOf(AMBER));}
         else if(view instanceof TextView){TextView label=(TextView)view;text(label);if(label.getId()==android.R.id.message){label.setGravity(Gravity.START);label.setPadding(0,dp(label,12),0,dp(label,10));}}
