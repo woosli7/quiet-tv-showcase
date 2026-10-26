@@ -16,6 +16,10 @@ public class CsHighlightsChecks {
     public static void main(String[] args)throws Exception{
         CsHighlights h=new CsHighlights(new JSONObject(new String(Files.readAllBytes(Paths.get(args[0])),"UTF-8")));CsMatch m=match();CsHighlights.Source s=h.source(m);long now=CsMatch.time("2026-10-25T20:00:00Z");
         ok(s!=null&&s.channel.equals(CHANNEL),"PGL routes to reviewed highlights channel");
+        java.net.URI nativeSearch=new java.net.URI(s.appSearch(m));String query=java.net.URLDecoder.decode(nativeSearch.getRawQuery(),"UTF-8");
+        ok(nativeSearch.getHost().equals("www.youtube.com")&&nativeSearch.getPath().equals("/tv")&&query.startsWith("launch=search&q="),"TV app receives actual native search link");
+        ok(query.contains(s.name)&&query.contains(m.a)&&query.contains(m.b)&&query.contains(m.event),"Native search includes organizer, both teams and exact event");
+        ok(s.search(m).contains("/channel/"+CHANNEL+"/search?query="),"Browser fallback remains scoped to reviewed channel");
         ok(s.search(m).startsWith("https://www.youtube.com/channel/"+CHANNEL+"/search?query="),"fallback stays within reviewed channel");
         ok(h.title(m,TITLE),"both teams and full event match");
         ok(h.title(m,"Liquid vs FUT / PGL Masters Bucharest 2026 HIGHLIGHTS"),"reversed team order works");

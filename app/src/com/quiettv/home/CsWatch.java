@@ -5,6 +5,13 @@ import android.net.Uri;
 
 /** Try installed players that actually resolve the deep link, then Silk. */
 final class CsWatch {
+    static boolean searchHighlights(Activity context,CsHighlights.Source source,CsMatch match){
+        // YouTube TV needs its search deep link; a web channel-search URL lands on Home.
+        Uri tv=Uri.parse(source.appSearch(match));
+        for(String pkg:new String[]{"com.amazon.firetv.youtube","com.google.android.youtube.tv"})if(launch(context,new Intent(Intent.ACTION_VIEW,tv).setPackage(pkg)))return true;
+        if(launch(context,new Intent(Intent.ACTION_VIEW,Uri.parse(source.search(match))).setPackage("com.google.android.youtube")))return true;
+        return open(context,source.search(match),true);
+    }
     static boolean open(Activity context,String url,boolean browserOnly){
         Uri uri=Uri.parse(url);String host=uri.getHost()==null?"":uri.getHost().toLowerCase(java.util.Locale.US);
         if(!browserOnly&&host.endsWith("twitch.tv")){
@@ -19,5 +26,5 @@ final class CsWatch {
         if(launch(context,new Intent(Intent.ACTION_VIEW,uri).setPackage("com.amazon.cloud9")))return true;
         return launch(context,new Intent(Intent.ACTION_VIEW,uri));
     }
-    static boolean launch(Activity context,Intent intent){try{ComponentName target=intent.resolveActivity(context.getPackageManager());if(target==null)return false;HomeService.trackApp(context,target.getPackageName());context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));return true;}catch(Exception ignored){HomeService.clearTrackedApp(context);return false;}}
+    static boolean launch(Activity context,Intent intent){try{ComponentName target=intent.resolveActivity(context.getPackageManager());if(target==null)return false;HomeService.trackApp(context,target.getPackageName());context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));if(context instanceof MainActivity)((MainActivity)context).contentLaunched();return true;}catch(Exception ignored){HomeService.clearTrackedApp(context);return false;}}
 }

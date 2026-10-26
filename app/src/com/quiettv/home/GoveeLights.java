@@ -28,6 +28,9 @@ final class GoveeLights {
     final ScheduledThreadPoolExecutor worker=new ScheduledThreadPoolExecutor(1);
     volatile boolean foreground=false,ready=false,closed=false;
     volatile int generation;
+    volatile int playbackToken=-1;
+    volatile long playbackUntil;
+    static final int PLAYBACK_BLUE=0x102c80;
     volatile String status="Connecting lights…";
     Future<?> pending;
     JSONObject config;
@@ -35,10 +38,16 @@ final class GoveeLights {
     int appliedBrightness=-1,appliedColor=-1;
     volatile String wanted="";
     GoveeLights(Context c,Listener l){context=c.getApplicationContext();listener=l;worker.setRemoveOnCancelPolicy(true);}
-    void resume(){foreground=true;worker.execute(()->{try{loadConfig();if(ready)setStatus("TV lights connected",false);else setStatus("Lights need setup",false);}catch(Exception ex){ready=false;setStatus("Lights setup unavailable",false);}});}
+    void resume(){cancel();foreground=true;worker.execute(()->{try{loadConfig();if(ready)setStatus("TV lights connected",false);else setStatus("Lights need setup",false);}catch(Exception ex){ready=false;setStatus("Lights setup unavailable",false);}});}
     void pause(){foreground=false;cancel();}
+    void pauseForPlayback(int brightness){
+        // Only this bounded, one-shot color change may finish after the menu pauses.
+        // No background polling, power-on command, or continuous animation.
+        cancel();solid(PLAYBACK_BLUE,Math.max(1,Math.min(15,brightness)),true,"Playback blue");
+        playbackUntil=SystemClock.elapsedRealtime()+15000;playbackToken=generation;foreground=false;
+    }
     void close(){pause();closed=true;worker.shutdownNow();main.removeCallbacksAndMessages(null);}
-    void cancel(){generation++;if(pending!=null)pending.cancel(false);wanted="";}
+    void cancel(){playbackToken=-1;playbackUntil=0;generation++;if(pending!=null)pending.cancel(false);wanted="";}
     void setStatus(String text,boolean notify){status=text;main.post(()->{if(!closed&&foreground)listener.changed(text,notify);});}
     void loadConfig() throws Exception {
         KeyStore store=KeyStore.getInstance("AndroidKeyStore");store.load(null);
@@ -83,7 +92,7 @@ final class GoveeLights {
             }catch(CancellationException ignored){}catch(NoSuchElementException ex){wanted="";if(valid(token))setStatus("Save an effect named slow in Govee Home first",true);}catch(Exception ex){appliedBrightness=-1;appliedColor=-1;wanted="";autoRetryAfter=SystemClock.elapsedRealtime()+30000;if(valid(token))setStatus("Lights unavailable — try again",!automatic);}
         },automatic?500:0,TimeUnit.MILLISECONDS);
     }
-    boolean valid(int token){return !closed&&foreground&&token==generation&&!Thread.currentThread().isInterrupted();}
+    boolean valid(int token){return !closed&&(foreground||(token==playbackToken&&SystemClock.elapsedRealtime()<playbackUntil))&&token==generation&&!Thread.currentThread().isInterrupted();}
     void send(Command command,int token) throws Exception {
         Object value=command.value;
         if(command.instance.equals("diyScene")&&value instanceof String){

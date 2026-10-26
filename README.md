@@ -21,7 +21,7 @@ App-inspired colors and logos respond as you browse, while an idle display shift
 - **Quiet menus.** Dark panels, compact readable rows, subtle amber text focus, and full labels that wrap instead of cutting off.
 - **Personal appearance.** Customize the greeting, choose a clean terminal or dot-matrix type style, and adjust the menu's appearance.
 - **Clock, weather, and an ambient idle display.** Keep useful information visible against a desert sky that follows seasonal sunrise, sunset, and the time of day.
-- **Optional smart lighting.** Match compatible Govee lights to the selected app, choose color palettes, or switch between controller-run effects. The current integration targets the H6097.
+- **Optional smart lighting.** Match compatible Govee lights to the selected app, switch to dim deep blue while watching, choose color palettes, or use controller-run effects. Menu colors return when you come back. The current integration targets the H6097.
 - **A warmer evening screen.** Enable a warm, dim overlay and choose from three strengths.
 - **Home and app-return helper.** On the tested Fire OS version, an optional local helper returns to Quiet TV on Home, app exit, boot, and wake.
 

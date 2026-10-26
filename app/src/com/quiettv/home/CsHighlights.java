@@ -15,6 +15,7 @@ final class CsHighlights {
     static final class Source {
         final Pattern event;final String channel,name;
         Source(JSONObject j)throws Exception{event=Pattern.compile(j.getString("event_pattern"),Pattern.CASE_INSENSITIVE);channel=j.getString("channel_id");name=CsMatch.clean(j.getString("name"));if(!channel.matches("UC[A-Za-z0-9_-]{22}"))throw new IOException("Invalid channel");}
+        String appSearch(CsMatch m){try{return "https://www.youtube.com/tv?launch=search&q="+URLEncoder.encode(name+" "+m.a+" vs "+m.b+" "+m.event,"UTF-8").replace("+","%20");}catch(Exception e){return "";}}
         String search(CsMatch m){try{return "https://www.youtube.com/channel/"+channel+"/search?query="+URLEncoder.encode(m.a+" "+m.b+" highlights","UTF-8")+"&hl=en";}catch(Exception e){return "";}}
     }
     static final class Video {
@@ -37,7 +38,7 @@ final class CsHighlights {
     Result find(CsMatch m){
         Source s=source(m);if(s==null)return new Result(null,Collections.emptyList(),"No reviewed highlights channel is configured for this event.");
         long now=System.currentTimeMillis();String key=m.id+":"+m.ended;Saved saved=cache.get(key);if(saved!=null&&now>=saved.at&&now-saved.at<saved.ttl)return saved.result;
-        ArrayList<Video> found=new ArrayList<>();String message="No matching official highlights found yet. Uploads can take a little while.";long ttl=2*MINUTE;
+        ArrayList<Video> found=new ArrayList<>();String message="No matching official highlights found yet. They may not have been uploaded. Try again later or search the official channel.";long ttl=2*MINUTE;
         try{
             long deadline=System.nanoTime()+15000000000L;List<Video> candidates=search(initial(fetch(s.search(m),deadline),"ytInitialData"),s,m);
             int checked=0;boolean failed=false;for(Video candidate:candidates){if(checked++>=MAX_CHOICES)break;try{Video verified=verify(initial(fetch(candidate.url()+"&hl=en",deadline),"ytInitialPlayerResponse"),s,m,candidate.id,System.currentTimeMillis());if(verified!=null)found.add(verified);}catch(InterruptedIOException e){throw e;}catch(Exception e){failed=true;}}

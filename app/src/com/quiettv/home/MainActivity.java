@@ -21,6 +21,8 @@ public class MainActivity extends Activity {
     Home screen;
     boolean setupShown;int profileGeneration;
     GoveeLights lights;
+    boolean contentLaunched;
+    void contentLaunched(){contentLaunched=true;}
     boolean csUpcomingOnlyFavorites=false,csPastOnlyFavorites=false;
     final CsRemoteInput csUpcomingInput=new CsRemoteInput(),csPastInput=new CsRemoteInput();
     CsFeed cs;boolean csFocused=false,csResultFocus=false,csUpcomingFocus=false;int csSelected=0;long csSelectedId=0;
@@ -179,8 +181,8 @@ public class MainActivity extends Activity {
         if(active&&prefs.getBoolean("keepQuietScreen",true))getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
-    protected void onResume(){super.onResume();String oldZone=TvProfile.zone().getID();configureZone();if(!oldZone.equals(TvProfile.zone().getID()))resetProfileData();HomeService.clearTrackedApp(this);active=true;lights.resume();updateScreenHold();wake();loadApps();refreshWeather(false);scheduleTick();if(!prefs.getBoolean("setupComplete",false)&&!setupShown){setupShown=true;timer.post(()->{if(active&&!isDestroyed())new SetupFlow(this,false).show();});}}
-    protected void onPause(){active=false;if(cs!=null)cs.pause();lights.pause();updateScreenHold();closeSettings();super.onPause();timer.removeCallbacks(tick);screen.animate().cancel();}
+    protected void onResume(){super.onResume();contentLaunched=false;String oldZone=TvProfile.zone().getID();configureZone();if(!oldZone.equals(TvProfile.zone().getID()))resetProfileData();HomeService.clearTrackedApp(this);active=true;lights.resume();updateScreenHold();wake();loadApps();refreshWeather(false);scheduleTick();if(!prefs.getBoolean("setupComplete",false)&&!setupShown){setupShown=true;timer.post(()->{if(active&&!isDestroyed())new SetupFlow(this,false).show();});}}
+    protected void onPause(){active=false;if(cs!=null)cs.pause();if(contentLaunched&&prefs.getBoolean("lightAppSync",false))lights.pauseForPlayback(Math.min(15,lightBrightness()));else lights.pause();contentLaunched=false;updateScreenHold();closeSettings();super.onPause();timer.removeCallbacks(tick);screen.animate().cancel();}
     protected void onDestroy(){if(cs!=null)cs.close();lights.close();weatherWorker.shutdownNow();timer.removeCallbacksAndMessages(null);super.onDestroy();}
     protected void onNewIntent(Intent intent){super.onNewIntent(intent);HomeService.clearTrackedApp(this);closeSettings();wake();}
     public boolean dispatchKeyEvent(KeyEvent event){
@@ -224,7 +226,7 @@ public class MainActivity extends Activity {
     }
     void openSelected(){
         if(selected==visible.size()){settings();return;}
-        try{Entry entry=visible.get(selected);ComponentName target=entry.intent.resolveActivity(getPackageManager());HomeService.trackApp(this,target==null?entry.key:target.getPackageName());startActivity(entry.intent);}catch(Exception ex){HomeService.clearTrackedApp(this);Toast.makeText(this,"This app could not open",Toast.LENGTH_SHORT).show();}
+        try{Entry entry=visible.get(selected);ComponentName target=entry.intent.resolveActivity(getPackageManager());HomeService.trackApp(this,target==null?entry.key:target.getPackageName());startActivity(entry.intent);contentLaunched();}catch(Exception ex){HomeService.clearTrackedApp(this);Toast.makeText(this,"This app could not open",Toast.LENGTH_SHORT).show();}
     }
     void settings(){
         closeSettings();
@@ -365,7 +367,7 @@ public class MainActivity extends Activity {
             }else if(n==5){prefs.edit().putBoolean("lightIdleDim",!prefs.getBoolean("lightIdleDim",true)).apply();refreshLightsRows();}
             else if(n==6)lights.power(true);
             else if(n==7){stopAppLights();lights.power(false);}
-            else showDialog(new AlertDialog.Builder(this).setTitle("Your lights, your atmosphere").setMessage("App colors follow your selection while Quiet TV is open. Idle dimming uses blue at 10%. When you open another app, the last light color stays.\n\nAmbient looks mix colors across the strip. Moving effects run on the lights, without a TV animation loop.\n\nCustom colors replace camera matching. To return to camera sync: stop App colors here, then open Govee Home → your device → Video. Camera mode cannot be restored through this model's API.\n\nChanges need internet and may take a few seconds.\n\n"+lights.status).setPositiveButton("Back",null).setNeutralButton("Stop app colors",(x,i)->stopAppLights()).create());
+            else showDialog(new AlertDialog.Builder(this).setTitle("Your lights, your atmosphere").setMessage("App colors follow your selection while Quiet TV is open. Idle dimming uses blue at 10%. Opening an app, broadcast, or highlights switches to dim deep blue (up to 15%). Returning to Quiet TV restores menu colors. This follows the App colors setting.\n\nAmbient looks mix colors across the strip. Moving effects run on the lights, without a TV animation loop.\n\nCustom colors replace camera matching. To return to camera sync: stop App colors here, then open Govee Home → your device → Video. Camera mode cannot be restored through this model's API.\n\nChanges need internet and may take a few seconds.\n\n"+lights.status).setPositiveButton("Back",null).setNeutralButton("Stop app colors",(x,i)->stopAppLights()).create());
         });
         lightsPage=settingsPages.get(settingsPages.size()-1);
     }
@@ -454,10 +456,14 @@ public class MainActivity extends Activity {
     void csHighlights(CsMatch match){
         if(cs==null)return;ProgressDialog progress=new ProgressDialog(this);progress.setMessage("Checking official highlights...");progress.setCancelable(true);showDialog(progress);
         Future<?> task=cs.highlights(match,result->{boolean showing=progress.isShowing();progress.dismiss();if(!showing||!active||isDestroyed())return;
-            if(result.videos.size()==1){closeSettings();if(!CsWatch.open(this,result.videos.get(0).url(),false))Toast.makeText(this,"Highlights could not open",Toast.LENGTH_LONG).show();return;}
-            if(!result.videos.isEmpty()){String[] labels=new String[result.videos.size()];for(int i=0;i<labels.length;i++)labels[i]=result.videos.get(i).title;showDialog(new AlertDialog.Builder(this).setTitle("Official highlights / "+match.a+" vs "+match.b).setItems(labels,(d,n)->{closeSettings();if(!CsWatch.open(this,result.videos.get(n).url(),false))Toast.makeText(this,"Highlights could not open",Toast.LENGTH_LONG).show();}).setNegativeButton("Back",null).create());return;}
-            AlertDialog.Builder page=new AlertDialog.Builder(this).setTitle("Match highlights").setMessage(result.message+(result.source==null?"":"\n\n"+result.source.name+"\n"+match.a+" vs "+match.b+"\n\nChannel search is a fallback, not a verified match video.")).setNegativeButton("Back",null);
-            if(result.source!=null)page.setPositiveButton("Search official channel",(d,n)->{closeSettings();if(!CsWatch.open(this,result.source.search(match),true))Toast.makeText(this,"Channel search could not open",Toast.LENGTH_LONG).show();});else page.setPositiveButton("Open match page",(d,n)->{closeSettings();CsWatch.open(this,match.page(),true);});showDialog(page.create());
+            if(result.videos.size()==1){if(CsWatch.open(this,result.videos.get(0).url(),false))closeSettings();else Toast.makeText(this,"Highlights could not open",Toast.LENGTH_LONG).show();return;}
+            if(!result.videos.isEmpty()){String[] labels=new String[result.videos.size()];for(int i=0;i<labels.length;i++)labels[i]=result.videos.get(i).title;showDialog(new AlertDialog.Builder(this).setTitle("Official highlights / "+match.a+" vs "+match.b).setItems(labels,(d,n)->{if(CsWatch.open(this,result.videos.get(n).url(),false))closeSettings();else Toast.makeText(this,"Highlights could not open",Toast.LENGTH_LONG).show();}).setNegativeButton("Back",null).create());return;}
+            AlertDialog page=new AlertDialog.Builder(this).setTitle("Highlights not available").setMessage(result.message+(result.source==null?"":"\n\n"+result.source.name+"\n"+match.a+" vs "+match.b))
+                .setNegativeButton("Back",null).setPositiveButton(result.source==null?"Open match page":"Search official channel",null).create();
+            showDialog(page);page.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+                boolean opened=result.source==null?CsWatch.open(this,match.page(),true):CsWatch.searchHighlights(this,result.source,match);
+                if(opened)closeSettings();else Toast.makeText(this,"Could not open. Please try again.",Toast.LENGTH_LONG).show();
+            });
         });progress.setOnCancelListener(d->task.cancel(true));
     }
     String csPastDayLabel(){long now=System.currentTimeMillis();SimpleDateFormat f=new SimpleDateFormat("EEE, MMM d",Locale.US);f.setTimeZone(CsResults.zone());return (csResultDate==CsResults.day(now,0)?"Today · ":csResultDate==CsResults.day(now,-1)?"Yesterday · ":"")+f.format(new Date(csResultDate));}
