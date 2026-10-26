@@ -1,0 +1,33 @@
+{
+  "profiles": [
+    {
+      "event_pattern": "\\bpgl\\b",
+      "channel_id": "UC3y-TwdfrUfm7Iindvvxsjg",
+      "name": "PGL Counter-Strike Highlights",
+      "sources": ["https://www.youtube.com/@Counter_Strike_Highlights", "https://www.youtube.com/watch?v=L66qOhCoRFU"]
+    },
+    {
+      "event_pattern": "\\b(esl|iem|intel extreme masters)\\b",
+      "channel_id": "UCDQZcZZwv-RhxHxJpHCdmbQ",
+      "name": "ESL Counter-Strike Highlights",
+      "sources": ["https://www.youtube.com/@ESLCSHighlights"]
+    },
+    {
+      "event_pattern": "\\bblast\\b",
+      "channel_id": "UCbWA4nLSXvfWnOS2Q4yP48A",
+      "name": "BLAST Premier CS2 Highlights",
+      "sources": ["https://www.youtube.com/@BLASTPremierHighlights"]
+    }
+  ],
+  "team_aliases": {
+    "Natus Vincere": ["NAVI", "Na Vi"],
+    "NAVI": ["Natus Vincere", "Na Vi"],
+    "The MongolZ": ["MongolZ"],
+    "MOUZ": ["mousesports"],
+    "FUT": ["FUT Esports"],
+    "Inner Circle": ["InnerCircle"],
+    "InnerCircle": ["Inner Circle"],
+    "BetBoom": ["Bet Boom"],
+    "BC.Game": ["BCGame"]
+  }
+}

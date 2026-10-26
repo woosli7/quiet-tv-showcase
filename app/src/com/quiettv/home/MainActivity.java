@@ -404,7 +404,16 @@ public class MainActivity extends Activity {
 
     void csResultDetails(CsMatch m){
         String summary=m.finalScore()?m.winner()+" won the series "+Math.max(m.one,m.two)+" - "+Math.min(m.one,m.two):"Finished / final series score unavailable";
-        showDialog(new AlertDialog.Builder(this).setTitle(csFinalLine(m)).setMessage(m.event+"\n\n"+summary+"\nFinished "+csTime(m.ended)+" / local time\n\nSource: BO3.gg").setPositiveButton("Open match page",(d,n)->{closeSettings();CsWatch.open(this,m.page(),true);}).setNegativeButton("Back",null).create());
+        AlertDialog detail=new AlertDialog.Builder(this).setTitle(csFinalLine(m)).setMessage(m.event+"\n\n"+summary+"\nFinished "+csTime(m.ended)+" / local time\n\nSource: BO3.gg").setNeutralButton("Highlights",null).setPositiveButton("Open match page",(d,n)->{closeSettings();CsWatch.open(this,m.page(),true);}).setNegativeButton("Back",null).create();showDialog(detail);detail.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v->csHighlights(m));
+    }
+    void csHighlights(CsMatch match){
+        if(cs==null)return;ProgressDialog progress=new ProgressDialog(this);progress.setMessage("Checking official highlights...");progress.setCancelable(true);showDialog(progress);
+        Future<?> task=cs.highlights(match,result->{boolean showing=progress.isShowing();progress.dismiss();if(!showing||!active||isDestroyed())return;
+            if(result.videos.size()==1){closeSettings();if(!CsWatch.open(this,result.videos.get(0).url(),false))Toast.makeText(this,"Highlights could not open",Toast.LENGTH_LONG).show();return;}
+            if(!result.videos.isEmpty()){String[] labels=new String[result.videos.size()];for(int i=0;i<labels.length;i++)labels[i]=result.videos.get(i).title;showDialog(new AlertDialog.Builder(this).setTitle("Official highlights / "+match.a+" vs "+match.b).setItems(labels,(d,n)->{closeSettings();if(!CsWatch.open(this,result.videos.get(n).url(),false))Toast.makeText(this,"Highlights could not open",Toast.LENGTH_LONG).show();}).setNegativeButton("Back",null).create());return;}
+            AlertDialog.Builder page=new AlertDialog.Builder(this).setTitle("Match highlights").setMessage(result.message+(result.source==null?"":"\n\n"+result.source.name+"\n"+match.a+" vs "+match.b+"\n\nChannel search is a fallback, not a verified match video.")).setNegativeButton("Back",null);
+            if(result.source!=null)page.setPositiveButton("Search official channel",(d,n)->{closeSettings();if(!CsWatch.open(this,result.source.search(match),true))Toast.makeText(this,"Channel search could not open",Toast.LENGTH_LONG).show();});else page.setPositiveButton("Open match page",(d,n)->{closeSettings();CsWatch.open(this,match.page(),true);});showDialog(page.create());
+        });progress.setOnCancelListener(d->task.cancel(true));
     }
     void csShowResults(){
         if(csResultsPage!=null&&csResultsPage.isShowing())return;

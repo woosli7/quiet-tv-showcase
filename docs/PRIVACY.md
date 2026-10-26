@@ -18,3 +18,5 @@ No Govee account key is compiled into the app. The existing integration imports 
 ## Screenshots
 
 All included screenshots are captures from a separate demonstration profile using the name DEMO and the example city Paris. They show no personal names, home location, account details, network settings, device identifiers, or credentials. Sky-preview captures keep the actual clock time; match information reflects the capture time. This showcase repository begins with a clean history and does not include the original development repository or its older screenshots.
+
+Highlights checks are optional and run only when selected in a result. YouTube receives the two team names in a channel-scoped search and ordinary network request information. Candidate video metadata is checked against reviewed organizer channels. Lookup results stay in a small memory cache; no personal TV profile, credentials, or viewing logs are sent by this lookup. Opening YouTube or the browser uses that service's own privacy settings.
