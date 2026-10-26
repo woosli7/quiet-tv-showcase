@@ -28,11 +28,19 @@ final class ReadableText {
         View decor=dialog.getWindow().getDecorView();view(decor);
         int id=dialog.getContext().getResources().getIdentifier("alertTitle","id","android");
         TextView title=id==0?null:decor.findViewById(id);if(title!=null)title.setTextSize(22);MenuStyle.dialog(dialog);
-        decor.post(()->{if(!dialog.isShowing()||dialog.getListView()==null)return;
+        // Measure before showing, rather than resizing a visible menu window.
+        ListView list=dialog.getListView();if(list!=null&&list.getAdapter()!=null){
             android.util.DisplayMetrics metrics=dialog.getContext().getResources().getDisplayMetrics();
-            ListView list=dialog.getListView();int cap=Math.min(Math.round(metrics.density*300),Math.round(metrics.heightPixels*.58f));
-            if(list.getHeight()>cap){ViewGroup.LayoutParams params=list.getLayoutParams();params.height=cap;list.setLayoutParams(params);}
-        });
+            int cap=Math.min(Math.round(metrics.density*300),Math.round(metrics.heightPixels*.58f));
+            int width=Math.max(1,Math.min(Math.round(metrics.density*640),Math.round(metrics.widthPixels*.82f))-Math.round(metrics.density*48)-list.getPaddingLeft()-list.getPaddingRight());
+            int height=list.getPaddingTop()+list.getPaddingBottom();ListAdapter adapter=list.getAdapter();View row=null;
+            for(int i=0;i<adapter.getCount()&&height<cap;i++){
+                row=adapter.getView(i,row,list);view(row);MenuStyle.row(row);
+                row.measure(View.MeasureSpec.makeMeasureSpec(width,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(0,View.MeasureSpec.UNSPECIFIED));
+                height+=row.getMeasuredHeight()+(i>0?list.getDividerHeight():0);
+            }
+            ViewGroup.LayoutParams size=list.getLayoutParams();size.height=Math.min(cap,Math.max(1,height));list.setLayoutParams(size);
+        }
     }
     interface Width {float measure(String text,float size);}
     static final class Label {

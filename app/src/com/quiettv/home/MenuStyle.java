@@ -32,6 +32,7 @@ final class MenuStyle {
         }
     }
     static void list(ListView list){
+        list.setCacheColorHint(Color.TRANSPARENT);list.setScrollingCacheEnabled(false);list.setAnimationCacheEnabled(false);
         list.setSelector(new ColorDrawable(Color.TRANSPARENT));list.setDrawSelectorOnTop(false);list.setDivider(new ColorDrawable(Color.TRANSPARENT));list.setDividerHeight(dp(list,4));list.setPadding(0,dp(list,3),0,dp(list,3));list.setClipToPadding(false);
         for(int i=0;i<list.getChildCount();i++)row(list.getChildAt(i));
     }
@@ -66,4 +67,3 @@ final class MenuStyle {
         footer(dialog);
     }
 }
-

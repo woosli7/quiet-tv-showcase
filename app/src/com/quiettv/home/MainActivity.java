@@ -33,6 +33,7 @@ public class MainActivity extends Activity {
     boolean active=false, idle=false, weatherBusy=false;
     int wakingKey=-1, dialogs=0;
     final ArrayList<AlertDialog> settingsPages=new ArrayList<>();
+    final Set<AlertDialog> preparedSettings=Collections.newSetFromMap(new IdentityHashMap<AlertDialog,Boolean>());
     final Map<AlertDialog,int[]> settingsFocus=new IdentityHashMap<>();
     boolean closingSettings=false;
     long lastInput=SystemClock.elapsedRealtime(), lastWeatherAttempt=-1800000;
@@ -108,34 +109,36 @@ public class MainActivity extends Activity {
     void rememberSettingsFocus(AlertDialog dialog){
         ListView list=dialog==csUpcomingPage?csUpcomingList:dialog==csResultsPage?csResultsList:dialog.getListView();if(list==null)return;
         View first=list.getChildAt(0);
-        settingsFocus.put(dialog,new int[]{list.getSelectedItemPosition(),list.getFirstVisiblePosition(),first==null?0:first.getTop()});
+        int selected=list.getSelectedItemPosition(),start=list.getFirstVisiblePosition();View activeRow=selected>=start&&selected<start+list.getChildCount()?list.getChildAt(selected-start):null;
+        settingsFocus.put(dialog,new int[]{selected,start,first==null?0:first.getTop(),activeRow==null?0:activeRow.getTop()});
+    }
+    void prepareSettingsPage(AlertDialog dialog){
+        if(preparedSettings.add(dialog)){dialog.create();ReadableText.dialog(dialog);}
     }
     void revealSettingsPage(AlertDialog dialog){
-        dialog.show();ReadableText.dialog(dialog);
-        if(dialog==csResultsPage){refreshCsResultsPage();if(!csResultRows.isEmpty())csResultsList.requestFocus();return;}
-        if(dialog==csUpcomingPage){refreshCsUpcomingPage();if(!csUpcomingRows.isEmpty())csUpcomingList.requestFocus();return;}
+        prepareSettingsPage(dialog);
         if(settingsPages.size()>1){
-            android.widget.Button back=dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+            Button back=dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
             if(back!=null&&dialog.getListView()!=null)back.setText("Back");
-            android.widget.Button close=dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            Button close=dialog.getButton(AlertDialog.BUTTON_POSITIVE);
             if(close!=null&&"Close".contentEquals(close.getText()))close.setText("Back");
         }
         ListView list=dialog==csUpcomingPage?csUpcomingList:dialog==csResultsPage?csResultsList:dialog.getListView();int[] saved=settingsFocus.get(dialog);
-        if(list!=null&&saved!=null)list.post(()->{
-            if(settingsPages.isEmpty()||settingsPages.get(settingsPages.size()-1)!=dialog||!dialog.isShowing())return;
-            list.requestFocus();list.setSelectionFromTop(saved[1],saved[2]);
-            if(saved[0]>=0)list.setSelection(saved[0]);
-        });
+        // Restore focus before display, without showing the first row on the way back.
+        if(list!=null&&saved!=null){list.requestFocus();list.setSelectionFromTop(saved[0]>=0?saved[0]:saved[1],saved[0]>=0?saved[3]:saved[2]);}
+        dialog.show();
+        if(dialog==csResultsPage){refreshCsResultsPage();if(!csResultRows.isEmpty())csResultsList.requestFocus();}
+        else if(dialog==csUpcomingPage){refreshCsUpcomingPage();if(!csUpcomingRows.isEmpty())csUpcomingList.requestFocus();}
     }
     void showDialog(AlertDialog dialog){
-        if(!settingsPages.isEmpty()){
-            AlertDialog parent=settingsPages.get(settingsPages.size()-1);
-            rememberSettingsFocus(parent);parent.hide();
-        }
+        // Prepare the child while the previous page is still visible.
+        prepareSettingsPage(dialog);
+        AlertDialog parent=settingsPages.isEmpty()?null:settingsPages.get(settingsPages.size()-1);
+        if(parent!=null)rememberSettingsFocus(parent);
         settingsPages.add(dialog);dialogs=settingsPages.size();
         dialog.setOnDismissListener(d->{
             if(closingSettings||settingsPages.isEmpty()||settingsPages.get(settingsPages.size()-1)!=dialog)return;
-            settingsPages.remove(settingsPages.size()-1);settingsFocus.remove(dialog);dialogs=settingsPages.size();
+            settingsPages.remove(settingsPages.size()-1);settingsFocus.remove(dialog);preparedSettings.remove(dialog);dialogs=settingsPages.size();
             if(dialog==lightsPage){lightsPage=null;lightsRows=null;}
             if(dialog==csResultsPage){csResultsPage=null;csResultRows=Collections.emptyList();csResultLabels=null;}
             if(dialog==csUpcomingPage){csUpcomingPage=null;csUpcomingRows=Collections.emptyList();csUpcomingLabels=null;}
@@ -143,11 +146,12 @@ public class MainActivity extends Activity {
             lastInput=SystemClock.elapsedRealtime();scheduleTick();
         });
         revealSettingsPage(dialog);
+        if(parent!=null)parent.hide();
     }
     void closeSettings(){
         closingSettings=true;
         for(int i=settingsPages.size()-1;i>=0;i--){AlertDialog dialog=settingsPages.get(i);dialog.setOnDismissListener(null);dialog.dismiss();}
-        settingsPages.clear();settingsFocus.clear();lightsPage=null;lightsRows=null;csResultsPage=null;csResultRows=Collections.emptyList();csResultLabels=null;csUpcomingPage=null;csUpcomingRows=Collections.emptyList();csUpcomingLabels=null;dialogs=0;closingSettings=false;
+        settingsPages.clear();settingsFocus.clear();preparedSettings.clear();lightsPage=null;lightsRows=null;csResultsPage=null;csResultRows=Collections.emptyList();csResultLabels=null;csUpcomingPage=null;csUpcomingRows=Collections.emptyList();csUpcomingLabels=null;dialogs=0;closingSettings=false;
         lastInput=SystemClock.elapsedRealtime();scheduleTick();
     }
     void menu(String title,String[] items,DialogInterface.OnClickListener action){
@@ -425,7 +429,7 @@ public class MainActivity extends Activity {
     void csShowUpcoming(){
         if(csUpcomingPage!=null&&csUpcomingPage.isShowing())return;csUpcomingInput.reset();csUpcomingOnlyFavorites=false;csUpcomingDate=CsSchedule.day(System.currentTimeMillis(),0);csUpcomingLabels=null;
         int pad=Math.round(getResources().getDisplayMetrics().density*16);LinearLayout heading=new LinearLayout(this);heading.setOrientation(LinearLayout.VERTICAL);heading.setPadding(0,0,0,0);
-        csUpcomingHint=new TextView(this);csUpcomingHint.setTag("quiet-date");csUpcomingHint.setPadding(0,pad/2,pad/2,pad/2);csAddFilter(heading,csUpcomingHint,true);csUpcomingList=new ListView(this);csUpcomingList.setAdapter(csRowsAdapter(new String[]{"Checking schedule..."},Collections.emptyList()));heading.addView(csUpcomingList,new LinearLayout.LayoutParams(-1,pad*7));
+        csUpcomingHint=new TextView(this);csUpcomingHint.setTag("quiet-date");csUpcomingHint.setPadding(0,pad/2,pad/2,pad/2);csAddFilter(heading,csUpcomingHint,true);csUpcomingList=new ListView(this);csUpcomingList.setAdapter(csRowsAdapter(new String[]{"Checking schedule..."},Collections.emptyList()));heading.addView(csUpcomingList,new LinearLayout.LayoutParams(-1,Math.round(getResources().getDisplayMetrics().density*260)));
         csUpcomingPage=new AlertDialog.Builder(this).setTitle("Upcoming matches").setView(heading).setNeutralButton("Next day",null).setPositiveButton("Previous day",null).setNegativeButton("Back",null).create();showDialog(csUpcomingPage);
         csUpcomingList.setOnItemClickListener((parent,row,index,id)->{if(index<csUpcomingRows.size())csUpcomingDetails(csUpcomingRows.get(index));});
         csUpcomingPage.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->csChangeUpcomingDay(-1));csUpcomingPage.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v->csChangeUpcomingDay(1));
@@ -440,7 +444,7 @@ public class MainActivity extends Activity {
         csUpcomingPage.setTitle("Upcoming matches");csUpcomingHint.setText(csUpcomingDayLabel());
         csUpcomingPage.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(csUpcomingDate>CsSchedule.day(now,0));csUpcomingPage.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(csUpcomingDate<CsSchedule.day(now,CsSchedule.DAYS-1));
         if(Arrays.equals(csUpcomingLabels,labels)){csUpcomingRows=rows;return;}
-        ListView list=csUpcomingList;int selected=list.getSelectedItemPosition();long selectedId=selected>=0&&selected<csUpcomingRows.size()?csUpcomingRows.get(selected).id:0;csUpcomingRows=rows;csUpcomingLabels=labels;list.setAdapter(csRowsAdapter(labels,rows));csResizeList(list);int focus=0;for(int i=0;i<rows.size();i++)if(rows.get(i).id==selectedId)focus=i;list.setSelection(focus);
+        ListView list=csUpcomingList;int selected=list.getSelectedItemPosition();long selectedId=selected>=0&&selected<csUpcomingRows.size()?csUpcomingRows.get(selected).id:0;csUpcomingRows=rows;csUpcomingLabels=labels;csUpdateRows(list,labels,rows.size());int focus=0;for(int i=0;i<rows.size();i++)if(rows.get(i).id==selectedId)focus=i;list.setSelection(focus);
     }
 
     void csResultDetails(CsMatch m){
@@ -461,7 +465,7 @@ public class MainActivity extends Activity {
     void csShowResults(){
         if(csResultsPage!=null&&csResultsPage.isShowing())return;csPastInput.reset();csPastOnlyFavorites=false;csResultDate=CsResults.day(System.currentTimeMillis(),0);csResultLabels=null;
         int pad=Math.round(getResources().getDisplayMetrics().density*16);LinearLayout heading=new LinearLayout(this);heading.setOrientation(LinearLayout.VERTICAL);heading.setPadding(0,0,0,0);
-        csResultsHint=new TextView(this);csResultsHint.setTag("quiet-date");csResultsHint.setPadding(0,pad/2,pad/2,pad/2);csAddFilter(heading,csResultsHint,false);csResultsList=new ListView(this);csResultsList.setAdapter(csRowsAdapter(new String[]{"Checking past matches..."},Collections.emptyList()));heading.addView(csResultsList,new LinearLayout.LayoutParams(-1,pad*7));
+        csResultsHint=new TextView(this);csResultsHint.setTag("quiet-date");csResultsHint.setPadding(0,pad/2,pad/2,pad/2);csAddFilter(heading,csResultsHint,false);csResultsList=new ListView(this);csResultsList.setAdapter(csRowsAdapter(new String[]{"Checking past matches..."},Collections.emptyList()));heading.addView(csResultsList,new LinearLayout.LayoutParams(-1,Math.round(getResources().getDisplayMetrics().density*260)));
         csResultsPage=new AlertDialog.Builder(this).setTitle("Past matches").setView(heading).setPositiveButton("Previous day",null).setNeutralButton("Next day",null).setNegativeButton("Back",null).create();showDialog(csResultsPage);
         csResultsList.setOnItemClickListener((parent,row,index,id)->{if(index<csResultRows.size())csResultDetails(csResultRows.get(index));});
         csResultsPage.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->csChangeResultDay(-1));csResultsPage.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v->csChangeResultDay(1));
@@ -476,23 +480,20 @@ public class MainActivity extends Activity {
         csResultsPage.setTitle("Past matches");csResultsHint.setText(csPastDayLabel());
         csResultsPage.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(csResultDate>CsResults.day(now,1-CsResults.DAYS));csResultsPage.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(csResultDate<CsResults.day(now,0));
         if(Arrays.equals(csResultLabels,labels)){csResultRows=rows;return;}
-        ListView list=csResultsList;int selected=list.getSelectedItemPosition();long selectedId=selected>=0&&selected<csResultRows.size()?csResultRows.get(selected).id:0;csResultRows=rows;csResultLabels=labels;list.setAdapter(csRowsAdapter(labels,rows));csResizeList(list);int focus=0;for(int i=0;i<rows.size();i++)if(rows.get(i).id==selectedId)focus=i;list.setSelection(focus);
+        ListView list=csResultsList;int selected=list.getSelectedItemPosition();long selectedId=selected>=0&&selected<csResultRows.size()?csResultRows.get(selected).id:0;csResultRows=rows;csResultLabels=labels;csUpdateRows(list,labels,rows.size());int focus=0;for(int i=0;i<rows.size();i++)if(rows.get(i).id==selectedId)focus=i;list.setSelection(focus);
     }
 
-    void csResizeList(ListView list){
-        // Measure wrapped rows at the actual width, stopping as soon as the viewport is full.
-        list.post(()->{if(list.getWindowToken()==null||list.getWidth()==0)return;
-            int cap=Math.round(getResources().getDisplayMetrics().density*260),minimum=Math.round(getResources().getDisplayMetrics().density*72);
-            int width=list.getWidth()-list.getPaddingLeft()-list.getPaddingRight(),height=list.getPaddingTop()+list.getPaddingBottom();
-            ListAdapter adapter=list.getAdapter();View row=null;
-            for(int i=0;i<adapter.getCount()&&height<cap;i++){row=adapter.getView(i,row,list);row.measure(View.MeasureSpec.makeMeasureSpec(width,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(0,View.MeasureSpec.UNSPECIFIED));height+=row.getMeasuredHeight()+(i>0?list.getDividerHeight():0);}
-            ViewGroup.LayoutParams params=list.getLayoutParams();int target=Math.min(cap,Math.max(minimum,height));if(params.height!=target){params.height=target;list.setLayoutParams(params);}
-        });
+    void csUpdateRows(ListView list,String[] labels,int matches){
+        // Keep the recycler, viewport and footer in place across date/filter updates.
+        CsRowsAdapter adapter=(CsRowsAdapter)list.getAdapter();adapter.matches=matches;adapter.setNotifyOnChange(false);
+        adapter.clear();adapter.addAll(labels);adapter.notifyDataSetChanged();
     }
-    ArrayAdapter<String> csRowsAdapter(String[] labels,java.util.List<CsMatch> rows){
-        return new ArrayAdapter<String>(this,android.R.layout.select_dialog_item,labels){
+    CsRowsAdapter csRowsAdapter(String[] labels,java.util.List<CsMatch> rows){return new CsRowsAdapter(labels,rows.size());}
+    final class CsRowsAdapter extends ArrayAdapter<String> {
+        int matches;
+        CsRowsAdapter(String[] labels,int size){super(MainActivity.this,android.R.layout.select_dialog_item,new ArrayList<String>(Arrays.asList(labels)));matches=size;}
             public boolean areAllItemsEnabled(){return false;}
-            public boolean isEnabled(int position){return position<rows.size();}
+            public boolean isEnabled(int position){return position<matches;}
             public View getView(int position,View reused,ViewGroup parent){
                 LinearLayout row;if(reused instanceof LinearLayout)row=(LinearLayout)reused;else{
                     row=new LinearLayout(MainActivity.this);row.setOrientation(LinearLayout.VERTICAL);int pad=Math.round(getResources().getDisplayMetrics().density*16);row.setPadding(pad,pad*3/4,pad,pad*3/4);row.setMinimumHeight(pad*4);
@@ -500,7 +501,6 @@ public class MainActivity extends Activity {
                 }
                 String value=getItem(position);int newline=value.indexOf('\n');((TextView)row.getChildAt(0)).setText(csStarText(newline<0?value:value.substring(0,newline)));TextView subtitle=(TextView)row.getChildAt(1);subtitle.setText(newline<0?"":value.substring(newline+1));subtitle.setVisibility(newline<0?View.GONE:View.VISIBLE);return row;
             }
-        };
     }
     void csOptions(){
         menu("Live Counter-Strike",new String[]{"Upcoming matches","Past matches","Team favorites","Refresh live matches","Open CS match listings","About this feed"},(d,n)->{
