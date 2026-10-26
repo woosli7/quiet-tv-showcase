@@ -14,6 +14,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class MainActivity extends Activity {
+    static final int CS_ACCENT=0xffe9ad72;
     static final String[] DEFAULT_APP_ORDER={"com.amazon.firetv.youtube","com.hulu.plus","com.amazon.firebat","com.cbs.ott","com.disney.disneyplus","com.amazon.cloud9"};
     final ArrayList<Entry> all = new ArrayList<>(), visible = new ArrayList<>();
     android.content.SharedPreferences prefs;
@@ -333,6 +334,7 @@ public class MainActivity extends Activity {
     void syncAppLights(boolean manual){
         if(lights==null||!active||!prefs.getBoolean("lightAppSync",false))return;
         if(idle){if(prefs.getBoolean("lightIdleDim",true))lights.solid(0x303a70,10,!manual,"Idle blue");return;}
+        if(csFocused&&cs!=null){lights.solid(CS_ACCENT,lightBrightness(),!manual,"Counter-Strike lights");return;}
         // Settings is neutral; entering it does not change the current app's lighting.
         if(selected<visible.size()){lastLightAppKey=visible.get(selected).key;lastLightAppLabel=visible.get(selected).label;}
         lights.solid(appBrandColor(lastLightAppKey),lightBrightness(),!manual,lastLightAppLabel+" lights");
@@ -479,8 +481,8 @@ public class MainActivity extends Activity {
         });
     }
     public boolean onKeyDown(int key,KeyEvent ev){
-        if(key==KeyEvent.KEYCODE_DPAD_RIGHT){if(cs!=null)csFocused=true;screen.invalidate();return true;}
-        if(csFocused){int liveSlots=Math.max(1,cs.live().size()),count=liveSlots+2;if(key==KeyEvent.KEYCODE_DPAD_LEFT||key==KeyEvent.KEYCODE_BACK){csFocused=false;screen.invalidate();return true;}if(key==KeyEvent.KEYCODE_DPAD_UP||key==KeyEvent.KEYCODE_DPAD_DOWN){int index=csResultFocus?liveSlots+1:csUpcomingFocus?liveSlots:Math.min(csSelected,liveSlots-1);index=(index+(key==KeyEvent.KEYCODE_DPAD_DOWN?1:count-1))%count;csUpcomingFocus=index==liveSlots;csResultFocus=index==liveSlots+1;if(!csResultFocus&&!csUpcomingFocus)csSelected=index;CsMatch m=csSelectedMatch();csSelectedId=m==null?0:m.id;screen.invalidate();return true;}if(key==KeyEvent.KEYCODE_DPAD_CENTER||key==KeyEvent.KEYCODE_ENTER){if(ev.getRepeatCount()==0)csResolve(false);return true;}if(key==KeyEvent.KEYCODE_MENU){csResolve(true);return true;}}
+        if(key==KeyEvent.KEYCODE_DPAD_RIGHT){if(cs!=null&&!csFocused){csFocused=true;syncAppLights(false);}screen.invalidate();return true;}
+        if(csFocused){int liveSlots=Math.max(1,cs.live().size()),count=liveSlots+2;if(key==KeyEvent.KEYCODE_DPAD_LEFT||key==KeyEvent.KEYCODE_BACK){csFocused=false;screen.invalidate();syncAppLights(false);return true;}if(key==KeyEvent.KEYCODE_DPAD_UP||key==KeyEvent.KEYCODE_DPAD_DOWN){int index=csResultFocus?liveSlots+1:csUpcomingFocus?liveSlots:Math.min(csSelected,liveSlots-1);index=(index+(key==KeyEvent.KEYCODE_DPAD_DOWN?1:count-1))%count;csUpcomingFocus=index==liveSlots;csResultFocus=index==liveSlots+1;if(!csResultFocus&&!csUpcomingFocus)csSelected=index;CsMatch m=csSelectedMatch();csSelectedId=m==null?0:m.id;screen.invalidate();return true;}if(key==KeyEvent.KEYCODE_DPAD_CENTER||key==KeyEvent.KEYCODE_ENTER){if(ev.getRepeatCount()==0)csResolve(false);return true;}if(key==KeyEvent.KEYCODE_MENU){csResolve(true);return true;}}
         if(key==KeyEvent.KEYCODE_DPAD_DOWN){selected=(selected+1)%(visible.size()+1);screen.invalidate();syncAppLights(false);return true;}
         if(key==KeyEvent.KEYCODE_DPAD_UP){selected=(selected+visible.size())%(visible.size()+1);screen.invalidate();syncAppLights(false);return true;}
         if(key==KeyEvent.KEYCODE_DPAD_CENTER||key==KeyEvent.KEYCODE_ENTER){if(ev.getRepeatCount()==0)openSelected();return true;}
@@ -604,7 +606,7 @@ public class MainActivity extends Activity {
             Bitmap bitmap=cs.images.get(url);if(bitmap!=null){p.setColor(0xffffffff);p.setAlpha(235);float ratio=Math.min(size/bitmap.getWidth(),size/bitmap.getHeight());float w=bitmap.getWidth()*ratio,h=bitmap.getHeight()*ratio;c.drawBitmap(bitmap,null,new RectF(x+(size-w)/2,y+(size-h)/2,x+(size+w)/2,y+(size+h)/2),p);p.setAlpha(255);}
             else{p.setColor(0xff202735);c.drawRoundRect(x,y,x+size,y+size,4,4,p);String initial=fallback.isEmpty()?"?":fallback.substring(0,1);dots(c,initial,x+size*.28f,y+size*.28f,size*.55f,0xffb2bfcd,false);}
         }
-        void csCard(Canvas c,float y,boolean focus){p.setShader(null);p.setStyle(Paint.Style.FILL);p.setColor(focus?0xff1d2432:0xff10151f);c.drawRoundRect(660,y,1190,y+94,7,7,p);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(focus?1.8f:1);p.setColor(focus?(prefs.getInt("theme",0)==0?0xffe9ad72:themeColor()):0xff252c38);c.drawRoundRect(660,y,1190,y+94,7,7,p);p.setStyle(Paint.Style.FILL);}
+        void csCard(Canvas c,float y,boolean focus){p.setShader(null);p.setStyle(Paint.Style.FILL);p.setColor(focus?0xff1d2432:0xff10151f);c.drawRoundRect(660,y,1190,y+94,7,7,p);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(focus?1.8f:1);p.setColor(focus?(prefs.getInt("theme",0)==0?CS_ACCENT:themeColor()):0xff252c38);c.drawRoundRect(660,y,1190,y+94,7,7,p);p.setStyle(Paint.Style.FILL);}
         long pastRangeDay=Long.MIN_VALUE;String pastRangeZone="",pastRangeLabel="";
         String pastMatchRange(){long now=System.currentTimeMillis(),day=CsResults.day(now,0);String zone=CsResults.zone().getID();if(day!=pastRangeDay||!zone.equals(pastRangeZone)){SimpleDateFormat f=new SimpleDateFormat("MMM d",Locale.US);f.setTimeZone(CsResults.zone());pastRangeLabel=f.format(new Date(CsResults.day(now,1-CsResults.DAYS)))+" – "+f.format(new Date(day));pastRangeDay=day;pastRangeZone=zone;}return pastRangeLabel;}
         void drawCs(Canvas c){
@@ -626,12 +628,12 @@ public class MainActivity extends Activity {
             dots(c,csFocused?(csResultFocus?"OK RESULTS / LEFT APPS":csUpcomingFocus?"OK SCHEDULE / LEFT APPS":rows.isEmpty()?"OK NEXT / DOWN SCHEDULE / MENU OPTIONS":"UP/DOWN SELECT / OK WATCH / MENU STREAMS"):"RIGHT TO EXPLORE",660,674,10,0xff64748a,false);
             long age=System.currentTimeMillis()-cs.liveAt;String stamp=cs.verified()?"BO3 / CHECKED "+(age<60000?"JUST NOW":age/60000+"M AGO")+(cs.failure.isEmpty()?"":" / RETRYING"):"BO3 / "+(cs.busy?"CHECKING":"STATUS NOT VERIFIED");dots(c,stamp,660,696,9,0xff4e5c70,false);
         }
-        void csListButton(Canvas c,float y,String label,String count,boolean focus){p.setShader(null);p.setStyle(Paint.Style.FILL);p.setColor(focus?0xff1d2432:0xff10151f);c.drawRoundRect(660,y,1190,y+30,6,6,p);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(focus?1.8f:1);p.setColor(focus?0xffe9ad72:0xff252c38);c.drawRoundRect(660,y,1190,y+30,6,6,p);p.setStyle(Paint.Style.FILL);dots(c,label,677,y+9,13,focus?0xffe6d1b8:0xffa7b4c5,false);dots(c,count,1174,y+10,11,0xff8d9eb2,true);}
+        void csListButton(Canvas c,float y,String label,String count,boolean focus){p.setShader(null);p.setStyle(Paint.Style.FILL);p.setColor(focus?0xff1d2432:0xff10151f);c.drawRoundRect(660,y,1190,y+30,6,6,p);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(focus?1.8f:1);p.setColor(focus?CS_ACCENT:0xff252c38);c.drawRoundRect(660,y,1190,y+30,6,6,p);p.setStyle(Paint.Style.FILL);dots(c,label,677,y+9,13,focus?0xffe6d1b8:0xffa7b4c5,false);dots(c,count,1174,y+10,11,0xff8d9eb2,true);}
         protected void onDraw(Canvas real){
             super.onDraw(real);cleanType=prefs.getInt("typeStyle",1)==1;real.save();real.scale(getWidth()/1280f,getHeight()/720f);
             real.drawColor(Color.rgb(9,10,16));
             if(idle){idleScreen(real);real.restore();return;}
-            int accent=csFocused?(prefs.getInt("theme",0)==0?0xffe9ad72:themeColor()):selected<visible.size()?brandColor(visible.get(selected).key):0xfff05243;
+            int accent=csFocused?(prefs.getInt("theme",0)==0?CS_ACCENT:themeColor()):selected<visible.size()?brandColor(visible.get(selected).key):0xfff05243;
             int glow=prefs.getInt("glow",1),shaderKey=accent*31+glow+(csFocused?7:0);
             if(glow>0){if(shaderKey!=glowKey){int alpha=csFocused?(glow==1?28:glow==2?44:60):(glow==1?18:glow==2?34:54);glowShader=new RadialGradient(csFocused?930:80,csFocused?490:390,csFocused?610:570,new int[]{(accent&0x00ffffff)|(alpha<<24),0x00090a10},null,Shader.TileMode.CLAMP);glowKey=shaderKey;}p.setShader(glowShader);p.setAlpha(255);real.drawRect(0,0,1280,720,p);p.setShader(null);}
             String welcome=greeting();float greetingSize=Math.min(40,1000f/Math.max(1,welcome.length())/.61f);
