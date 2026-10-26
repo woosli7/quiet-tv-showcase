@@ -110,7 +110,7 @@ public class MainActivity extends Activity {
         settingsFocus.put(dialog,new int[]{list.getSelectedItemPosition(),list.getFirstVisiblePosition(),first==null?0:first.getTop()});
     }
     void revealSettingsPage(AlertDialog dialog){
-        dialog.show();
+        dialog.show();ReadableText.dialog(dialog);
         if(dialog==csResultsPage){refreshCsResultsPage();if(!csResultRows.isEmpty())csResultsList.requestFocus();return;}
         if(dialog==csUpcomingPage){refreshCsUpcomingPage();if(!csUpcomingRows.isEmpty())csUpcomingList.requestFocus();return;}
         if(settingsPages.size()>1){
@@ -403,7 +403,7 @@ public class MainActivity extends Activity {
         if(event.getAction()==KeyEvent.ACTION_DOWN&&event.getRepeatCount()==0){int delta=key==KeyEvent.KEYCODE_DPAD_RIGHT?1:-1;for(int i=selected+delta;i>=0&&i<buttons.length;i+=delta)if(buttons[i].isEnabled()){buttons[i].requestFocus();break;}}return true;
     }
     void csAddFilter(LinearLayout heading,TextView hint,boolean upcoming){
-        int height=Math.round(getResources().getDisplayMetrics().density*42);LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);bar.addView(hint,new LinearLayout.LayoutParams(0,-2,1));Button filter=new Button(this);filter.setTextSize(13);filter.setSingleLine(true);filter.setText(csMyTeams(upcoming)?"My teams ★":"All matches");bar.addView(filter,new LinearLayout.LayoutParams(-2,height));heading.addView(bar);
+        int height=Math.round(getResources().getDisplayMetrics().density*42);LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);bar.addView(hint,new LinearLayout.LayoutParams(0,-2,1));Button filter=new Button(this);filter.setTextSize(13);ReadableText.wrap(filter);filter.setText(csMyTeams(upcoming)?"My teams ★":"All matches");bar.addView(filter,new LinearLayout.LayoutParams(-2,-2));bar.setMinimumHeight(height);heading.addView(bar);
         filter.setOnClickListener(v->{if(upcoming)csUpcomingOnlyFavorites=!csUpcomingOnlyFavorites;else csPastOnlyFavorites=!csPastOnlyFavorites;filter.setText(csMyTeams(upcoming)?"My teams ★":"All matches");if(upcoming){csUpcomingLabels=null;refreshCsUpcomingPage();}else{csResultLabels=null;refreshCsResultsPage();}filter.requestFocus();});
     }
 
@@ -426,12 +426,12 @@ public class MainActivity extends Activity {
         if(cs==null||csUpcomingPage==null||!csUpcomingPage.isShowing())return;long now=System.currentTimeMillis(),selectedDay=CsSchedule.browseDay(csUpcomingDate,0,now);if(csUpcomingDate!=selectedDay){csUpcomingDate=selectedDay;csUpcomingLabels=null;}
         java.util.List<CsMatch> rows=csFiltered(cs.upcoming(csUpcomingDate),true);String[] labels;boolean today=csUpcomingDate==CsSchedule.day(now,0);
         if(rows.isEmpty()){String status=csMyTeams(true)&&cs.favorites.empty()?"No teams followed / Switch to All matches":cs.scheduleBusy?"Checking the schedule...":!cs.scheduleFailure.isEmpty()?cs.scheduleFailure:CsSchedule.fresh(cs.scheduleAt,now)?csMyTeams(true)?cs.favorites.empty()?"No teams followed / Switch to All matches":"No matches for your teams this day":today?"No more featured matches scheduled today":"No featured matches scheduled this day":"Schedule needs a refresh / Press Menu";labels=new String[]{status};}
-        else{boolean saved=!cs.scheduleFailure.isEmpty();labels=new String[rows.size()+(saved?1:0)];for(int i=0;i<rows.size();i++){CsMatch m=rows.get(i);labels[i]=csMatchNames(m)+"\n"+m.event+" / "+csTime(m.start)+" / SCHEDULED";}if(saved)labels[rows.size()]="Saved schedule may be incomplete / Menu to refresh";}
+        else{boolean saved=!cs.scheduleFailure.isEmpty();labels=new String[rows.size()+(saved?1:0)];for(int i=0;i<rows.size();i++){CsMatch m=rows.get(i);labels[i]=csMatchNames(m)+"\n"+m.event+"\n"+csTime(m.start)+" / SCHEDULED";}if(saved)labels[rows.size()]="Saved schedule may be incomplete / Menu to refresh";}
         csUpcomingPage.setTitle("Upcoming matches / "+csUpcomingDayLabel());int day=1;for(int i=1;i<CsSchedule.DAYS;i++)if(csUpcomingDate==CsSchedule.day(now,i))day=i+1;
         csUpcomingHint.setText("◀ / ▶ DAY "+day+" OF "+CsSchedule.DAYS+"   •   MENU "+(cs.scheduleBusy?"CHECKING...":"REFRESH"));
         csUpcomingPage.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(csUpcomingDate>CsSchedule.day(now,0));csUpcomingPage.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(csUpcomingDate<CsSchedule.day(now,CsSchedule.DAYS-1));
         if(Arrays.equals(csUpcomingLabels,labels)){csUpcomingRows=rows;return;}
-        ListView list=csUpcomingList;int selected=list.getSelectedItemPosition();long selectedId=selected>=0&&selected<csUpcomingRows.size()?csUpcomingRows.get(selected).id:0;csUpcomingRows=rows;csUpcomingLabels=labels;list.setAdapter(csRowsAdapter(labels,rows));ViewGroup.LayoutParams size=list.getLayoutParams();size.height=Math.round(getResources().getDisplayMetrics().density*Math.min(300,Math.max(100,rows.size()*76)));list.setLayoutParams(size);int focus=0;for(int i=0;i<rows.size();i++)if(rows.get(i).id==selectedId)focus=i;list.setSelection(focus);
+        ListView list=csUpcomingList;int selected=list.getSelectedItemPosition();long selectedId=selected>=0&&selected<csUpcomingRows.size()?csUpcomingRows.get(selected).id:0;csUpcomingRows=rows;csUpcomingLabels=labels;list.setAdapter(csRowsAdapter(labels,rows));csResizeList(list);int focus=0;for(int i=0;i<rows.size();i++)if(rows.get(i).id==selectedId)focus=i;list.setSelection(focus);
     }
 
     void csResultDetails(CsMatch m){
@@ -463,14 +463,24 @@ public class MainActivity extends Activity {
         if(cs==null||csResultsPage==null||!csResultsPage.isShowing())return;long now=System.currentTimeMillis(),selectedDay=CsResults.browseDay(csResultDate,0,now);if(selectedDay!=csResultDate){csResultDate=selectedDay;csResultLabels=null;}
         java.util.List<CsMatch> rows=csFiltered(cs.results(csResultDate),false);String[] labels;boolean current=csResultDate==CsResults.day(now,0),fresh=CsResults.fresh(cs.resultsLog.checkedAt,now);
         if(rows.isEmpty()){String status=csMyTeams(false)&&cs.favorites.empty()?"No teams followed / Switch to All matches":cs.resultsBusy?"Checking past matches...":!cs.resultFailure.isEmpty()?cs.resultFailure:fresh?csMyTeams(false)?cs.favorites.empty()?"No teams followed / Switch to All matches":"No finished matches for your teams this day":current?"No featured matches have finished today":"No featured matches finished this day":"Past matches need a refresh / Press Menu";labels=new String[]{status};}
-        else{boolean saved=!cs.resultFailure.isEmpty()||!fresh&&!cs.resultsBusy;labels=new String[rows.size()+(saved?1:0)];for(int i=0;i<rows.size();i++){CsMatch m=rows.get(i);labels[i]=csFinalLine(m)+"\n"+m.event+" / FINAL / "+csTime(m.ended);}if(saved)labels[rows.size()]="Saved matches / Menu to check for more";}
+        else{boolean saved=!cs.resultFailure.isEmpty()||!fresh&&!cs.resultsBusy;labels=new String[rows.size()+(saved?1:0)];for(int i=0;i<rows.size();i++){CsMatch m=rows.get(i);labels[i]=csFinalLine(m)+"\n"+m.event+"\nFINAL / "+csTime(m.ended);}if(saved)labels[rows.size()]="Saved matches / Menu to check for more";}
         csResultsPage.setTitle("Past matches / "+csPastDayLabel());int day=CsResults.DAYS;for(int i=1;i<CsResults.DAYS;i++)if(csResultDate==CsResults.day(now,-i))day=CsResults.DAYS-i;
         csResultsHint.setText("◀ / ▶ DAY "+day+" OF "+CsResults.DAYS+"   •   MENU "+(cs.resultsBusy?"CHECKING...":"REFRESH"));
         csResultsPage.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(csResultDate>CsResults.day(now,1-CsResults.DAYS));csResultsPage.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(csResultDate<CsResults.day(now,0));
         if(Arrays.equals(csResultLabels,labels)){csResultRows=rows;return;}
-        ListView list=csResultsList;int selected=list.getSelectedItemPosition();long selectedId=selected>=0&&selected<csResultRows.size()?csResultRows.get(selected).id:0;csResultRows=rows;csResultLabels=labels;list.setAdapter(csRowsAdapter(labels,rows));ViewGroup.LayoutParams size=list.getLayoutParams();size.height=Math.round(getResources().getDisplayMetrics().density*Math.min(300,Math.max(100,rows.size()*76)));list.setLayoutParams(size);int focus=0;for(int i=0;i<rows.size();i++)if(rows.get(i).id==selectedId)focus=i;list.setSelection(focus);
+        ListView list=csResultsList;int selected=list.getSelectedItemPosition();long selectedId=selected>=0&&selected<csResultRows.size()?csResultRows.get(selected).id:0;csResultRows=rows;csResultLabels=labels;list.setAdapter(csRowsAdapter(labels,rows));csResizeList(list);int focus=0;for(int i=0;i<rows.size();i++)if(rows.get(i).id==selectedId)focus=i;list.setSelection(focus);
     }
 
+    void csResizeList(ListView list){
+        // Measure wrapped rows at the actual width, stopping as soon as the viewport is full.
+        list.post(()->{if(list.getWindowToken()==null||list.getWidth()==0)return;
+            int cap=Math.round(getResources().getDisplayMetrics().density*260),minimum=Math.round(getResources().getDisplayMetrics().density*100);
+            int width=list.getWidth()-list.getPaddingLeft()-list.getPaddingRight(),height=list.getPaddingTop()+list.getPaddingBottom();
+            ListAdapter adapter=list.getAdapter();View row=null;
+            for(int i=0;i<adapter.getCount()&&height<cap;i++){row=adapter.getView(i,row,list);row.measure(View.MeasureSpec.makeMeasureSpec(width,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(0,View.MeasureSpec.UNSPECIFIED));height+=row.getMeasuredHeight()+(i>0?list.getDividerHeight():0);}
+            ViewGroup.LayoutParams params=list.getLayoutParams();int target=Math.min(cap,Math.max(minimum,height));if(params.height!=target){params.height=target;list.setLayoutParams(params);}
+        });
+    }
     ArrayAdapter<String> csRowsAdapter(String[] labels,java.util.List<CsMatch> rows){
         return new ArrayAdapter<String>(this,android.R.layout.select_dialog_item,labels){
             public boolean areAllItemsEnabled(){return false;}
@@ -478,7 +488,7 @@ public class MainActivity extends Activity {
             public View getView(int position,View reused,ViewGroup parent){
                 LinearLayout row;if(reused instanceof LinearLayout)row=(LinearLayout)reused;else{
                     row=new LinearLayout(MainActivity.this);row.setOrientation(LinearLayout.VERTICAL);int pad=Math.round(getResources().getDisplayMetrics().density*16);row.setPadding(pad,pad*3/4,pad,pad*3/4);row.setMinimumHeight(pad*4);
-                    TextView title=new TextView(MainActivity.this),subtitle=new TextView(MainActivity.this);Typeface face=Typeface.create("monospace",Typeface.NORMAL);title.setTypeface(face);subtitle.setTypeface(face);title.setTextSize(22);subtitle.setTextSize(14);title.setTextColor(0xffe5ebf5);subtitle.setTextColor(0xff9aa9bd);title.setSingleLine(true);subtitle.setSingleLine(true);title.setEllipsize(android.text.TextUtils.TruncateAt.END);subtitle.setEllipsize(android.text.TextUtils.TruncateAt.END);row.addView(title);row.addView(subtitle);
+                    TextView title=new TextView(MainActivity.this),subtitle=new TextView(MainActivity.this);Typeface face=Typeface.create("monospace",Typeface.NORMAL);title.setTypeface(face);subtitle.setTypeface(face);title.setTextSize(22);subtitle.setTextSize(14);title.setTextColor(0xffe5ebf5);subtitle.setTextColor(0xff9aa9bd);ReadableText.wrap(title);ReadableText.wrap(subtitle);row.addView(title);row.addView(subtitle);
                 }
                 String value=getItem(position);int newline=value.indexOf('\n');((TextView)row.getChildAt(0)).setText(csStarText(newline<0?value:value.substring(0,newline)));TextView subtitle=(TextView)row.getChildAt(1);subtitle.setText(newline<0?"":value.substring(newline+1));subtitle.setVisibility(newline<0?View.GONE:View.VISIBLE);return row;
             }
@@ -607,11 +617,11 @@ public class MainActivity extends Activity {
             if(!prefs.getBoolean("weather",true))return;TvProfile.City city=profileCity();
             long fetched=prefs.getLong("weatherAt",0);boolean sky=dim&&prefs.getInt("idleSky",1)==1;int color=dim?(sky?0xffbac6d5:0xff737d8a):0xffc6ced8;
             if(city==null){dots(c,"ADD A CITY IN SETTINGS",right,y,12,0xff737582,true);return;}
-            if(fetched==0){dots(c,fit(city.name+" / WEATHER UNAVAILABLE",500,12),right,y,12,0xff737582,true);return;}
+            if(fetched==0){label(c,city.name+" / WEATHER UNAVAILABLE",right,y,12,0xff737582,true,500,2,28);return;}
             boolean stale=System.currentTimeMillis()-fetched>7200000L;
             int code=prefs.getInt("weatherCode",0);String text=conditions(code)+" / "+prefs.getInt("weatherTemp",0)+(fahrenheit()?"°F":"°C");
             dots(c,text,right,y,dim?21:24,color,true);
-            dots(c,fit(city.name+(stale?" / SAVED":""),500,10),right,y+32,10,sky?0xff929fb0:0xff737582,true);
+            label(c,city.name+(stale?" / SAVED":""),right,y+32,10,sky?0xff929fb0:0xff737582,true,500,2,24);
             float iconX=right-textWidth(text,dim?21:24)-25,iconY=y+8;
             p.setShader(null);p.setColor(color);p.setStrokeWidth(1.5f);p.setStyle(Paint.Style.STROKE);
             if(code==0){
@@ -632,7 +642,12 @@ public class MainActivity extends Activity {
             weather(c,center+140,443,true);
             dots(c,"PRESS ANY BUTTON TO RETURN",center+textWidth("PRESS ANY BUTTON TO RETURN",10)/2,600,10,prefs.getInt("idleSky",1)==1?0xff778597:0xff47515e,true);
         }
-        String fit(String value,float width,float height){if(textWidth(value,height)<=width)return value;String shortened=value;while(shortened.length()>1&&textWidth(shortened+"...",height)>width)shortened=shortened.substring(0,shortened.length()-1);return shortened+"...";}
+        final LruCache<String,ReadableText.Label> labelCache=new LruCache<>(128);
+        void label(Canvas c,String value,float x,float y,float size,int color,boolean right,float width,int lines,float height){
+            String key=cleanType+"|"+width+"|"+size+"|"+lines+"|"+height+"|"+value;
+            ReadableText.Label layout=labelCache.get(key);if(layout==null){layout=ReadableText.fit(value,width-3,size,lines,height,(text,scale)->textWidth(text,scale));labelCache.put(key,layout);}
+            for(int i=0;i<layout.lines.length;i++)dots(c,layout.lines[i],x,y+i*layout.size*1.16f,layout.size,color,right);
+        }
         void csLogo(Canvas c,String url,String fallback,float x,float y,float size){
             Bitmap bitmap=cs.images.get(url);if(bitmap!=null){p.setColor(0xffffffff);p.setAlpha(235);float ratio=Math.min(size/bitmap.getWidth(),size/bitmap.getHeight());float w=bitmap.getWidth()*ratio,h=bitmap.getHeight()*ratio;c.drawBitmap(bitmap,null,new RectF(x+(size-w)/2,y+(size-h)/2,x+(size+w)/2,y+(size+h)/2),p);p.setAlpha(255);}
             else{p.setColor(0xff202735);c.drawRoundRect(x,y,x+size,y+size,4,4,p);String initial=fallback.isEmpty()?"?":fallback.substring(0,1);dots(c,initial,x+size*.28f,y+size*.28f,size*.55f,0xffb2bfcd,false);}
@@ -646,12 +661,12 @@ public class MainActivity extends Activity {
             if(rows.isEmpty()){
                 csCard(c,383,csFocused&&!csResultFocus&&!csUpcomingFocus);boolean verified=cs.verified();String title=verified?"NO MAJOR CS MATCHES LIVE":cs.busy?"CHECKING LIVE MATCHES":"LIVE STATUS UNAVAILABLE";
                 dots(c,title,677,398,14,verified?0xffb0bdcc:0xffb8a68d,false);CsMatch next=cs.next();
-                if(next!=null){csLogo(c,next.logoEvent,next.event,677,425,24);dots(c,fit("NEXT TODAY: "+csMatchNames(next),453,13),710,427,13,0xffa9b8c9,false);dots(c,fit(next.event+" / "+csTime(next.start),453,10),710,451,10,0xff748297,false);}
-                else dots(c,verified?"CHECK BACK LATER":cs.failure.isEmpty()?(cs.busy?"LOADING MATCH DATA":cs.liveAt>0?"LAST CHECK EXPIRED / MENU TO RETRY":"MENU TO RETRY"):cs.failure.toUpperCase(Locale.US)+" / MENU TO RETRY",677,435,11,0xff768599,false);
+                if(next!=null){csLogo(c,next.logoEvent,next.event,677,425,24);label(c,"NEXT TODAY: "+csMatchNames(next),710,424,13,0xffa9b8c9,false,453,2,26);label(c,next.event+" / "+csTime(next.start),710,455,10,0xff748297,false,453,1,12);}
+                else label(c,verified?"CHECK BACK LATER":cs.failure.isEmpty()?(cs.busy?"LOADING MATCH DATA":cs.liveAt>0?"LAST CHECK EXPIRED / MENU TO RETRY":"MENU TO RETRY"):cs.failure.toUpperCase(Locale.US)+" / MENU TO RETRY",677,435,11,0xff768599,false,498,2,28);
             }else for(int i=0;i<rows.size();i++){
                 CsMatch m=rows.get(i);float y=383+i*106;boolean focus=csFocused&&!csResultFocus&&!csUpcomingFocus&&csSelected==i;csCard(c,y,focus);csLogo(c,m.logoEvent,m.event,677,y+13,21);
-                dots(c,fit(m.event,390,13),710,y+17,13,0xffa7b4c5,false);p.setColor(0xff72343b);c.drawRoundRect(1126,y+11,1175,y+31,4,4,p);dots(c,"LIVE",1134,y+17,10,0xffffb2ad,false);
-                csLogo(c,m.logoA,m.a,677,y+40,22);dots(c,fit(csTeamName(m.teamIdA,m.a),170,18),710,y+45,18,cs.favorites.contains(m.teamIdA,m.a)?CS_ACCENT:0xffdbe2ec,false);dots(c,"VS",895,y+48,10,0xff657387,false);csLogo(c,m.logoB,m.b,926,y+40,22);dots(c,fit(csTeamName(m.teamIdB,m.b),210,18),959,y+45,18,cs.favorites.contains(m.teamIdB,m.b)?CS_ACCENT:0xffdbe2ec,false);
+                label(c,m.event,710,y+17,13,0xffa7b4c5,false,390,1,16);p.setColor(0xff72343b);c.drawRoundRect(1126,y+11,1175,y+31,4,4,p);dots(c,"LIVE",1134,y+17,10,0xffffb2ad,false);
+                csLogo(c,m.logoA,m.a,677,y+40,22);label(c,csTeamName(m.teamIdA,m.a),710,y+43,18,cs.favorites.contains(m.teamIdA,m.a)?CS_ACCENT:0xffdbe2ec,false,170,2,29);dots(c,"VS",895,y+48,10,0xff657387,false);csLogo(c,m.logoB,m.b,926,y+40,22);label(c,csTeamName(m.teamIdB,m.b),959,y+43,18,cs.favorites.contains(m.teamIdB,m.b)?CS_ACCENT:0xffdbe2ec,false,210,2,29);
                 String score=m.one>=0&&m.two>=0?"MAPS "+m.one+" - "+m.two:"SERIES SCORE UNAVAILABLE";dots(c,score+(m.bo>0?" / BO"+m.bo:""),710,y+76,10,0xff8d9eb2,false);if(focus)dots(c,"OK WATCH",1175,y+76,10,0xffe0b68b,true);
             }
             int upcoming=cs.upcoming().size();String resultRange=pastMatchRange();String upcomingCount=upcoming>0?upcoming+" TODAY":cs.scheduleBusy?"CHECKING":cs.scheduleFailure.isEmpty()?"VIEW":"RETRY";
@@ -676,15 +691,15 @@ public class MainActivity extends Activity {
             for(int j=0;j<Math.min(5,count-start);j++){
                 int i=start+j;boolean active=i==selected&&!csFocused;float y=260+j*66;
                 String label=i==visible.size()?"SETTINGS":visible.get(i).label;
-                if(label.length()>27)label=label.substring(0,26)+"…";
                 if(active){
                     p.setColor(highlight(accent));
                     BrandBadge badge=brandBadges.get(i<visible.size()?visible.get(i).key:"@settings");
                     if(badge!=null){real.save();real.translate(80,y+12);real.drawPath(badge.color,p);if(badge.layers!=null)for(int layer=0;layer<badge.layers.length;layer++){p.setColor(highlight(prefs.getInt("theme",0)==0?badge.layerColors[layer]:accent));real.drawPath(badge.layers[layer],p);}if(badge.white!=null){p.setColor(highlight(prefs.getInt("theme",0)==0?0xfff8f8ff:accent));real.drawPath(badge.white,p);}real.restore();}
                     else real.drawCircle(80,y+12,5,p);
-                    if(i<visible.size())brandedLabel(real,visible.get(i),112,y,33);
+                    if(i<visible.size()&&textWidth(label,33)<=490)brandedLabel(real,visible.get(i),112,y,33);
+                    else if(i<visible.size())label(real,label,112,y,33,highlight(accent),false,490,2,53);
                     else dots(real,label,112,y,33,0xfff1f0f6,false);
-                }else dots(real,label,112,y,29,0xff737582,false);
+                }else label(real,label,112,y,29,0xff737582,false,490,2,53);
             }
             drawCs(real);
             dots(real,cs==null?"UP / DOWN SELECT   OK OPEN   MENU SETTINGS":"UP / DOWN SELECT   OK OPEN   RIGHT CS   MENU SETTINGS",112,657,11,0xff4e505f,false);
