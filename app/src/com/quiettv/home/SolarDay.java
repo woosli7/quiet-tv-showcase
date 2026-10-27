@@ -16,6 +16,6 @@ final class SolarDay {
         int r=minute(rise),s=minute(set);if(r<120||s>1320||s<=r)return null;
         return new SolarDay(rise,set);
     }
-    int previewMinute(int choice){if(choice==1)return riseMinute+12;if(choice==2)return (riseMinute+setMinute)/2;if(choice==3)return setMinute-12;if(choice==4)return Math.min(1439,setMinute+120);return -1;}
-    static int[] anchors(int rise,int set){int noon=(rise+set)/2;return new int[]{0,rise-60,rise,rise+(noon-rise)/2,noon+(set-noon)/2,set,set+35,set+90,1440};}
+    int previewMinute(int choice){int noon=(riseMinute+setMinute)/2;if(choice==1)return riseMinute+12;if(choice==2)return riseMinute+(noon-riseMinute)/2;if(choice==3)return noon;if(choice==4)return setMinute-12;if(choice==5)return Math.min(1439,setMinute+120);return -1;}
+    static int[] anchors(int rise,int set){int noon=(rise+set)/2;return new int[]{0,rise-60,rise+12,rise+(noon-rise)/2,noon,noon+(set-noon)/2,set-12,set+35,set+90,1440};}
 }

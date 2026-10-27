@@ -10,7 +10,7 @@ Quiet TV is a lightweight, customizable Fire TV launcher built to clear away the
 
 The goal is simple: turn on your TV and get straight to what you want. Your apps, clock, weather, and ambient visuals come together in a clean, remote-friendly menu. Choose which apps appear, arrange them your way, and give your TV a look that feels like yours.
 
-App-inspired colors and logos respond as you browse, while an idle display shifts through sunrise, daylight, sunset, and night. Appearance controls, optional smart lighting, and a warm evening screen filter let you adjust the atmosphere without filling the menu with distractions.
+App-inspired colors and logos respond as you browse, while an idle display shifts from cool peach sunrise and soft golden mornings to blue midday skies, coral-and-plum sunsets, and deep navy nights. Appearance controls, optional smart lighting, and a warm evening screen filter let you adjust the atmosphere without filling the menu with distractions.
 
 ## What it does
 

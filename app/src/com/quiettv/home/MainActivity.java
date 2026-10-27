@@ -101,7 +101,7 @@ public class MainActivity extends Activity {
         try{org.json.JSONArray rows=new org.json.JSONArray(value);for(int i=0;i<Math.min(16,rows.length());i++){org.json.JSONObject row=rows.getJSONObject(i);SolarDay day=SolarDay.forDate(row.optLong("rise",0),row.optLong("set",0),now);if(day!=null){cachedSolarDay=day;break;}}}catch(org.json.JSONException ignored){}
         return cachedSolarDay;
     }
-    int previewSkyMinute(int choice){SolarDay day=solarDay();return day==null?new int[]{-1,390,720,1065,1320}[choice]:day.previewMinute(choice);}
+    int previewSkyMinute(int choice){SolarDay day=solarDay();return day==null?new int[]{-1,372,547,735,1098,1230}[choice]:day.previewMinute(choice);}
     void solarInfo(){
         SolarDay day=solarDay();TvProfile.City city=profileCity();String message=(city==null?"Choose a city in Settings → City and time":city.label())+" / "+TvProfile.zone().getID()+"\n\n";
         if(day==null)message+="Daily sun times are unavailable. The sky temporarily uses preset times until it can refresh.";
@@ -307,7 +307,7 @@ public class MainActivity extends Activity {
         String[] items={"Choose idle delay","Preview idle screen",prefs.getBoolean("keepQuietScreen",true)?"Keep Quiet TV on screen: On":"Keep Quiet TV on screen: Off","Idle background","Today's sun times"};
         menu("Idle clock",items,(d,n)->{
             if(n==0)choice("Show idle clock after","idleMinutes",new String[]{"Never","2 minutes","5 minutes","10 minutes"},new int[]{0,2,5,10},2);
-            else if(n==1)showDialog(new AlertDialog.Builder(this).setTitle("Preview idle sky").setItems(new String[]{"Current time","Sunrise","Daylight","Sunset","Night"},(page,index)->{closeSettings();enterIdle(previewSkyMinute(index));}).setNegativeButton("Back",null).create());
+            else if(n==1)showDialog(new AlertDialog.Builder(this).setTitle("Preview idle sky").setItems(new String[]{"Current time","Sunrise","Morning","Midday","Sunset","Night"},(page,index)->{closeSettings();enterIdle(previewSkyMinute(index));}).setNegativeButton("Back",null).create());
             else if(n==2){boolean enabled=!prefs.getBoolean("keepQuietScreen",true);prefs.edit().putBoolean("keepQuietScreen",enabled).apply();updateScreenHold();updateMenu(d,items,2,enabled?"Keep Quiet TV on screen: On":"Keep Quiet TV on screen: Off");}
             else if(n==3)choice("Idle background","idleSky",new String[]{"Time-of-day sky","Classic plain background"},new int[]{1,0},1);else solarInfo();
         });
