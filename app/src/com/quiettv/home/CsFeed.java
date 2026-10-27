@@ -63,7 +63,7 @@ final class CsFeed {
     }
     static String resultsListing(int offset){return "matches?scope=widget-matches&page%5Boffset%5D="+offset+"&page%5Blimit%5D=100&sort=-end_date&filter%5Bmatches.status%5D%5Bin%5D=finished&filter%5Bmatches.discipline_id%5D%5Beq%5D=1&with=teams,tournament";}
     void post(Runnable r){handler.post(()->{if(!closed)r.run();});}
-    java.util.List<CsMatch> live(){if(!CsPolicy.fresh(liveAt,System.currentTimeMillis(),policy.expiry))return Collections.emptyList();if(liveSource!=matches||liveRevision!=favorites.revision){liveView=favorites.prioritize(matches,policy.cards);liveSource=matches;liveRevision=favorites.revision;}return liveView;}
+    java.util.List<CsMatch> live(){if(!CsPolicy.fresh(liveAt,System.currentTimeMillis(),policy.expiry))return Collections.emptyList();if(liveSource!=matches||liveRevision!=favorites.revision){liveView=policy.feature(favorites.prioritize(matches,matches.size()),policy.cards);liveSource=matches;liveRevision=favorites.revision;}return liveView;}
     CsMatch next(){return CsSchedule.next(schedule,scheduleAt,System.currentTimeMillis(),policy);}
     boolean verified(){return CsPolicy.fresh(liveAt,System.currentTimeMillis(),policy.expiry);}
     void resume(){visible=true;refresh(false);refreshResults(false);refreshSchedule(false);notifyChange();}

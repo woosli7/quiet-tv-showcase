@@ -52,6 +52,17 @@
         "https://blast.tv/cs/tournaments/rivals-2026-season-2"
       ],
       "twitch_language": "en"
+    },
+    {
+      "event_pattern": "\\btesla cup\\b",
+      "kick": [
+        "rlgcs"
+      ],
+      "sources": [
+        "https://relog.gg/tesla-cup-2026",
+        "https://kick.com/rlgcs/about",
+        "https://api.bo3.gg/api/v1/matches/alliance-cs-vs-faze-27-10-2026"
+      ]
     }
   ]
 }

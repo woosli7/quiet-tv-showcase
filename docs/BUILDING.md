@@ -60,7 +60,7 @@ adb -s YOUR_TV_IP:5555 shell pm revoke com.quiettv.home android.permission.READ_
 
 - **Apps:** launch installed packages through their normal launch intents. The Chrome-themed shortcut targets Silk. Twitch is installed separately for native CS playback.
 - **Location:** first-time setup and Settings → City and time provide optional city search and city/TV timezone selection. Weather settings offer Celsius/Fahrenheit. Profile changes invalidate incompatible caches and obsolete in-flight responses; no source edits or location permission are needed.
-- **CS filtering:** edit `app/res/raw/cs_policy.json`. Verified organizer identities and references live separately in `cs_broadcasters.json`.
+- **CS filtering:** edit `app/res/raw/cs_policy.json`. Optional `include_team_ids` admits only fixtures containing those exact provider IDs, without admitting the rest of their tournaments. Shared defaults are empty; this is separate from UI favorites. Verified organizer identities and references live separately in `cs_broadcasters.json`.
 - **Lights:** optional H6097 support is included, but the personal provisioning tool/payload is not. `GoveeLights.loadConfig()` defines the encrypted import format. General setup is unfinished; without configuration the app simply shows that lights need setup. Never place a real API key or device ID in source control.
 - **Night screen:** enable the overlay permission through Settings if desired. The optional device-specific DIRECTV companion used in the personal build is not distributed here; use Settings to toggle the filter.
 
