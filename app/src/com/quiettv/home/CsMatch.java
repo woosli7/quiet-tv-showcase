@@ -34,12 +34,6 @@ final class CsPolicy {
     static void ids(JSONArray a,Set<Long> into){if(a!=null)for(int i=0;i<a.length();i++)into.add(a.optLong(i,0));}
     boolean accepts(CsMatch m,long eventId){if(exclude.contains(eventId))return false;if(teamIncluded(m)||include.contains(eventId))return true;if(excluded.matcher(m.event).find())return false;return m.tier>0&&(m.tier<=topTier||m.tier<=secondTier&&m.prize>=secondPrize)||m.tier==0&&m.prize>=unknownPrize&&known.matcher(m.event).find();}
     boolean teamIncluded(CsMatch m){return m.teamIdA>0&&includeTeams.contains(m.teamIdA)||m.teamIdB>0&&includeTeams.contains(m.teamIdB);}
-    java.util.List<CsMatch> feature(java.util.List<CsMatch> source,int limit){
-        ArrayList<CsMatch> out=new ArrayList<>(source);
-        // Keep team-only exceptions visible without admitting the rest of their event.
-        if(!includeTeams.isEmpty())out.sort((a,b)->Boolean.compare(teamIncluded(b),teamIncluded(a)));
-        return new ArrayList<>(out.subList(0,Math.min(Math.max(0,limit),out.size())));
-    }
     long rank(CsMatch m){return (m.tier==1?10000000:m.tier==2?7000000:4000000)+Math.min(2000000,m.prize)+m.stars*1000+(known.matcher(m.event).find()?500:0);}
     boolean live(CsMatch m,long now){int wins=m.bo>=1&&m.bo<=7?(m.bo+1)/2:0;return m.status.equals("current")&&m.ended==0&&now>=m.start-900000&&now-m.start<maxDuration&&(wins==0||m.one<wins&&m.two<wins);}
     static boolean fresh(long observed,long now,long ttl){return observed>0&&now>=observed&&now-observed<ttl;}

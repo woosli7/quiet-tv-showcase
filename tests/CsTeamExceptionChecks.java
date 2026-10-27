@@ -32,8 +32,11 @@ public final class CsTeamExceptionChecks {
         CsResults.Page page=CsResults.windowPage(results.toString(),0,now,policy,Collections.emptySet());ok(page.matches.size()==1&&page.matches.get(0).id==a.id,"past matches also use the same team-only rule");
         CsResults log=new CsResults();log.merge(page.matches,now);ok(CsResults.restore(log.cache(now),policy,now).count(now)==1,"FaZe results survive normal bounded cache restore");
         CsMatch major1=match(10,100,200,"current",now),major2=match(11,300,400,"current",now);CsFavorites favorites=new CsFavorites("[]");favorites.set(100,"Other A",true);favorites.set(300,"Other A",true);
-        List<CsMatch> rows=Arrays.asList(major1,major2,b);List<CsMatch> featured=policy.feature(favorites.prioritize(rows,rows.size()),2);ok(featured.size()==2&&featured.get(0)==b,"FaZe cannot be hidden by the two-card limit or other favorites");ok(featured.get(1)==major1,"remaining cards retain their previous ordering");ok(rows.get(0)==major1,"prioritization never mutates source records");
-        ok(normal.feature(rows,2).get(0)==major1,"no team exception preserves normal card order");
+        List<CsMatch> rows=Arrays.asList(major1,major2,b);List<CsMatch> featured=favorites.prioritize(rows,policy.cards);
+        ok(featured.size()==2&&featured.get(0)==major1&&featured.get(1)==major2,"FaZe exception grants no bonus over normal favorites or two-card limit");
+        ok(policy.rank(b)==normal.rank(b),"FaZe has the same tournament ranking with or without eligibility exception");
+        ok(rows.get(0)==major1,"normal selection does not mutate source records");
+        ok(new CsFavorites("[]").prioritize(Arrays.asList(b,major1),2).get(0)==b,"FaZe retains its ordinary position without forced promotion or demotion");
         if(args.length>1){JSONObject registry=new JSONObject(new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(args[0])),"UTF-8"));JSONObject detail=new JSONObject(new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(args[1])),"UTF-8"));CsMatch actual=CsMatch.read(detail);ok(actual.teamIdB==791&&policy.accepts(actual,actual.eventId),"real Alliance FaZe fixture is accepted by verified provider ID");List<CsStream> streams=new CsBroadcasts(registry).select(CsStream.read(detail,actual.id),actual.event,Collections.emptyMap());ok(streams.size()==1&&streams.get(0).url.equals("https://kick.com/rlgcs")&&streams.get(0).english(),"actual match broadcast resolves reviewed English RLG channel");ok(!policy.live(actual,System.currentTimeMillis()),"real scheduled fixture remains upcoming");}
         System.out.println("COMPLETE: "+count+" team exception checks passed");
     }
