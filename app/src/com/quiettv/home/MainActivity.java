@@ -25,7 +25,7 @@ public class MainActivity extends Activity {
     void contentLaunched(){contentLaunched=true;}
     boolean csUpcomingOnlyFavorites=false,csPastOnlyFavorites=false;
     final CsRemoteInput csUpcomingInput=new CsRemoteInput(),csPastInput=new CsRemoteInput();
-    CsFeed cs;boolean csFocused=false,csResultFocus=false,csUpcomingFocus=false;int csSelected=0;long csSelectedId=0;
+    CsFeed cs;boolean csFocused=false,csResultFocus=false,csUpcomingFocus=false;int csSelected=0,csLiveFirst=0;long csSelectedId=0;
     long csResultDate;TextView csResultsHint;ListView csResultsList;AlertDialog csResultsPage;java.util.List<CsMatch> csResultRows=Collections.emptyList();String[] csResultLabels;
     long csUpcomingDate;TextView csUpcomingHint;ListView csUpcomingList;AlertDialog csUpcomingPage;java.util.List<CsMatch> csUpcomingRows=Collections.emptyList();String[] csUpcomingLabels;
     AlertDialog lightsPage;
@@ -68,7 +68,7 @@ public class MainActivity extends Activity {
     void resetProfileData(){profileGeneration++;prefs.edit().remove("weatherAt").remove("weatherTemp").remove("weatherCode").remove("weatherDay").remove("solarDays").apply();configureZone();solarDate=-1;solarValue="";cachedSolarDay=null;lastWeatherAttempt=-1800000;screen.formats.clear();if(cs!=null){cs.close();cs=null;}applyWidgets();}
     void startSetup(boolean locationOnly){if(!locationOnly)closeSettings();setupShown=true;new SetupFlow(this,locationOnly).show();}
     void applyWidgets(){
-        if(prefs.getBoolean("widgetCs",false)){if(cs==null)cs=new CsFeed(this,()->{java.util.List<CsMatch> live=cs.live();if(csSelectedId!=0)for(int i=0;i<live.size();i++)if(live.get(i).id==csSelectedId)csSelected=i;csSelected=Math.min(csSelected,Math.max(0,live.size()-1));refreshCsResultsPage();refreshCsUpcomingPage();if(active&&!idle)screen.invalidate();});if(active&&!idle)cs.resume();}
+        if(prefs.getBoolean("widgetCs",false)){if(cs==null)cs=new CsFeed(this,()->{csLiveChanged();refreshCsResultsPage();refreshCsUpcomingPage();if(active&&!idle)screen.invalidate();});if(active&&!idle)cs.resume();}
         else{if(cs!=null)cs.close();cs=null;csFocused=csResultFocus=csUpcomingFocus=false;csSelected=0;csSelectedId=0;}
         if(screen!=null)screen.invalidate();
     }
@@ -387,6 +387,14 @@ public class MainActivity extends Activity {
         });
     }
     String csTime(long when){SimpleDateFormat f=new SimpleDateFormat("EEE h:mm a",Locale.US);f.setTimeZone(TvProfile.zone());return f.format(new Date(when));}
+    void csLiveChanged(){
+        java.util.List<CsMatch> rows=cs.live();csSelected=CsLiveWindow.selected(rows,csSelectedId,csSelected);
+        csSelectedId=rows.isEmpty()?0:rows.get(csSelected).id;csLiveViewport();
+    }
+    void csLiveViewport(){
+        csLiveFirst=CsLiveWindow.first(csLiveFirst,csSelected,cs.live().size(),cs.policy.cards);
+        cs.liveViewport(csLiveFirst);
+    }
     CsMatch csSelectedMatch(){if(csResultFocus||csUpcomingFocus)return null;java.util.List<CsMatch> rows=cs.live();return csSelected<rows.size()?rows.get(csSelected):null;}
     String csResultDay(){SimpleDateFormat f=new SimpleDateFormat("EEE MMM d",Locale.US);f.setTimeZone(TvProfile.zone());return f.format(new Date());}
     CharSequence csStarText(String text){if(text.indexOf('★')<0)return text;android.text.SpannableString value=new android.text.SpannableString(text);for(int i=0;i<text.length();i++)if(text.charAt(i)=='★')value.setSpan(new android.text.style.ForegroundColorSpan(CS_ACCENT),i,i+1,android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);return value;}
@@ -541,7 +549,7 @@ public class MainActivity extends Activity {
     }
     public boolean onKeyDown(int key,KeyEvent ev){
         if(key==KeyEvent.KEYCODE_DPAD_RIGHT){if(cs!=null&&!csFocused){csFocused=true;syncAppLights(false);}screen.invalidate();return true;}
-        if(csFocused){int liveSlots=Math.max(1,cs.live().size()),count=liveSlots+2;if(key==KeyEvent.KEYCODE_DPAD_LEFT||key==KeyEvent.KEYCODE_BACK){csFocused=false;screen.invalidate();syncAppLights(false);return true;}if(key==KeyEvent.KEYCODE_DPAD_UP||key==KeyEvent.KEYCODE_DPAD_DOWN){int index=csResultFocus?liveSlots+1:csUpcomingFocus?liveSlots:Math.min(csSelected,liveSlots-1);index=(index+(key==KeyEvent.KEYCODE_DPAD_DOWN?1:count-1))%count;csUpcomingFocus=index==liveSlots;csResultFocus=index==liveSlots+1;if(!csResultFocus&&!csUpcomingFocus)csSelected=index;CsMatch m=csSelectedMatch();csSelectedId=m==null?0:m.id;screen.invalidate();return true;}if(key==KeyEvent.KEYCODE_DPAD_CENTER||key==KeyEvent.KEYCODE_ENTER){if(ev.getRepeatCount()==0)csResolve(false);return true;}if(key==KeyEvent.KEYCODE_MENU){csResolve(true);return true;}}
+        if(csFocused){int liveSlots=Math.max(1,cs.live().size()),count=liveSlots+2;if(key==KeyEvent.KEYCODE_DPAD_LEFT||key==KeyEvent.KEYCODE_BACK){csFocused=false;screen.invalidate();syncAppLights(false);return true;}if(key==KeyEvent.KEYCODE_DPAD_UP||key==KeyEvent.KEYCODE_DPAD_DOWN){int index=csResultFocus?liveSlots+1:csUpcomingFocus?liveSlots:Math.min(csSelected,liveSlots-1);index=(index+(key==KeyEvent.KEYCODE_DPAD_DOWN?1:count-1))%count;csUpcomingFocus=index==liveSlots;csResultFocus=index==liveSlots+1;if(!csResultFocus&&!csUpcomingFocus)csSelected=index;CsMatch m=csSelectedMatch();csSelectedId=m==null?0:m.id;csLiveViewport();screen.invalidate();return true;}if(key==KeyEvent.KEYCODE_DPAD_CENTER||key==KeyEvent.KEYCODE_ENTER){if(ev.getRepeatCount()==0)csResolve(false);return true;}if(key==KeyEvent.KEYCODE_MENU){csResolve(true);return true;}}
         if(key==KeyEvent.KEYCODE_DPAD_DOWN){selected=(selected+1)%(visible.size()+1);screen.invalidate();syncAppLights(false);return true;}
         if(key==KeyEvent.KEYCODE_DPAD_UP){selected=(selected+visible.size())%(visible.size()+1);screen.invalidate();syncAppLights(false);return true;}
         if(key==KeyEvent.KEYCODE_DPAD_CENTER||key==KeyEvent.KEYCODE_ENTER){if(ev.getRepeatCount()==0)openSelected();return true;}
@@ -684,13 +692,14 @@ public class MainActivity extends Activity {
         void drawCs(Canvas c){
             if(cs==null)return;java.util.List<CsMatch> rows=cs.live();
             dots(c,"LIVE COUNTER-STRIKE",660,352,15,csFocused?0xffd8e2ed:0xff919baa,false);
+            if(rows.size()>cs.policy.cards){int first=CsLiveWindow.first(csLiveFirst,csSelected,rows.size(),cs.policy.cards);dots(c,(first+1)+"-"+Math.min(rows.size(),first+cs.policy.cards)+" / "+rows.size(),1190,354,11,csFocused?0xffb7c4d5:0xff748297,true);}
             if(rows.isEmpty()){
                 csCard(c,383,csFocused&&!csResultFocus&&!csUpcomingFocus);boolean verified=cs.verified();String title=verified?"NO MAJOR CS MATCHES LIVE":cs.busy?"CHECKING LIVE MATCHES":"LIVE STATUS UNAVAILABLE";
                 dots(c,title,677,398,14,verified?0xffb0bdcc:0xffb8a68d,false);CsMatch next=cs.next();
                 if(next!=null){csLogo(c,next.logoEvent,next.event,677,425,24);label(c,"NEXT TODAY: "+csMatchNames(next),710,424,13,0xffa9b8c9,false,453,2,26);label(c,next.event+" / "+csTime(next.start),710,455,10,0xff748297,false,453,1,12);}
                 else label(c,verified?"CHECK BACK LATER":cs.failure.isEmpty()?(cs.busy?"LOADING MATCH DATA":cs.liveAt>0?"LAST CHECK EXPIRED / MENU TO RETRY":"MENU TO RETRY"):cs.failure.toUpperCase(Locale.US)+" / MENU TO RETRY",677,435,11,0xff768599,false,498,2,28);
-            }else for(int i=0;i<rows.size();i++){
-                CsMatch m=rows.get(i);float y=383+i*106;boolean focus=csFocused&&!csResultFocus&&!csUpcomingFocus&&csSelected==i;csCard(c,y,focus);csLogo(c,m.logoEvent,m.event,677,y+13,21);
+            }else for(int i=CsLiveWindow.first(csLiveFirst,csSelected,rows.size(),cs.policy.cards),end=Math.min(rows.size(),i+cs.policy.cards),slot=0;i<end;i++,slot++){
+                CsMatch m=rows.get(i);float y=383+slot*106;boolean focus=csFocused&&!csResultFocus&&!csUpcomingFocus&&csSelected==i;csCard(c,y,focus);csLogo(c,m.logoEvent,m.event,677,y+13,21);
                 label(c,m.event,710,y+17,13,0xffa7b4c5,false,390,1,16);csLiveBadge(c,y);
                 csLogo(c,m.logoA,m.a,677,y+40,22);label(c,csTeamName(m.teamIdA,m.a),710,y+43,18,cs.favorites.contains(m.teamIdA,m.a)?CS_ACCENT:0xffdbe2ec,false,170,2,29);dots(c,"VS",895,y+48,10,0xff657387,false);csLogo(c,m.logoB,m.b,926,y+40,22);label(c,csTeamName(m.teamIdB,m.b),959,y+43,18,cs.favorites.contains(m.teamIdB,m.b)?CS_ACCENT:0xffdbe2ec,false,210,2,29);
                 String score=m.one>=0&&m.two>=0?"MAPS "+m.one+" - "+m.two:"SERIES SCORE UNAVAILABLE";dots(c,score+(m.bo>0?" / BO"+m.bo:""),710,y+76,10,0xff8d9eb2,false);if(focus)dots(c,"OK WATCH",1175,y+76,10,0xffe0b68b,true);

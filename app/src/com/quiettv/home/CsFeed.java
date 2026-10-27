@@ -63,7 +63,7 @@ final class CsFeed {
     }
     static String resultsListing(int offset){return "matches?scope=widget-matches&page%5Boffset%5D="+offset+"&page%5Blimit%5D=100&sort=-end_date&filter%5Bmatches.status%5D%5Bin%5D=finished&filter%5Bmatches.discipline_id%5D%5Beq%5D=1&with=teams,tournament";}
     void post(Runnable r){handler.post(()->{if(!closed)r.run();});}
-    java.util.List<CsMatch> live(){if(!CsPolicy.fresh(liveAt,System.currentTimeMillis(),policy.expiry))return Collections.emptyList();if(liveSource!=matches||liveRevision!=favorites.revision){liveView=favorites.prioritize(matches,policy.cards);liveSource=matches;liveRevision=favorites.revision;}return liveView;}
+    java.util.List<CsMatch> live(){if(!CsPolicy.fresh(liveAt,System.currentTimeMillis(),policy.expiry))return Collections.emptyList();if(liveSource!=matches||liveRevision!=favorites.revision){liveView=favorites.prioritize(matches,LIVE_RECORDS);liveSource=matches;liveRevision=favorites.revision;}return liveView;}
     CsMatch next(){return CsSchedule.next(schedule,scheduleAt,System.currentTimeMillis(),policy);}
     boolean verified(){return CsPolicy.fresh(liveAt,System.currentTimeMillis(),policy.expiry);}
     void resume(){visible=true;refresh(false);refreshResults(false);refreshSchedule(false);notifyChange();}
@@ -107,11 +107,19 @@ final class CsFeed {
         try{int code=c.getResponseCode();if(code!=200)throw new IOException("Match source HTTP "+code);InputStream raw=c.getInputStream();try(InputStream in="gzip".equalsIgnoreCase(c.getContentEncoding())?new GZIPInputStream(raw):raw){return read(in,524288);}}finally{c.disconnect();}
     }
     static String read(InputStream input,int limit) throws IOException {ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buffer=new byte[4096];int n;while((n=input.read(buffer))!=-1){if(out.size()+n>limit)throw new IOException("Response too large");out.write(buffer,0,n);}return out.toString("UTF-8");}
-    void loadIcons(){java.util.List<CsMatch> rows=live();if(rows.isEmpty()&&next()!=null)rows=Collections.singletonList(next());for(CsMatch m:rows){image(m.logoEvent);image(m.logoA);image(m.logoB);}}
+    int liveImageFirst;
+    volatile Set<String> wantedImages=Collections.emptySet();
+    void liveViewport(int first){if(liveImageFirst!=first){liveImageFirst=first;loadIcons();}}
+    void loadIcons(){
+        java.util.List<CsMatch> rows=live();int first=Math.max(0,liveImageFirst-1),end=Math.min(rows.size(),liveImageFirst+policy.cards+1);
+        if(rows.isEmpty()&&next()!=null){rows=Collections.singletonList(next());first=0;end=1;}
+        LinkedHashSet<String> wanted=new LinkedHashSet<>();for(int i=first;i<end;i++){CsMatch m=rows.get(i);wanted.add(m.logoEvent);wanted.add(m.logoA);wanted.add(m.logoB);}wanted.remove("");wantedImages=Collections.unmodifiableSet(wanted);
+        for(String url:wanted)image(url);
+    }
     void image(String url){
         if(url.isEmpty()||images.get(url)!=null||closed||!visible)return;
-        synchronized(pending){if(pending.contains(url)||failedImages.containsKey(url)&&SystemClock.elapsedRealtime()-failedImages.get(url)<900000)return;pending.add(url);}
-        icons.execute(()->{boolean failed=false;try{if(!visible||closed)return;HttpURLConnection c=(HttpURLConnection)new URL(url).openConnection();c.setConnectTimeout(3500);c.setReadTimeout(3500);c.setRequestProperty("User-Agent","QuietTV/1.0");try{if(c.getResponseCode()!=200)throw new IOException();byte[] bytes;try(InputStream in=c.getInputStream()){ByteArrayOutputStream b=new ByteArrayOutputStream();byte[] chunk=new byte[2048];int n;while((n=in.read(chunk))!=-1){if(b.size()+n>131072)throw new IOException();b.write(chunk,0,n);}bytes=b.toByteArray();}BitmapFactory.Options options=new BitmapFactory.Options();options.inJustDecodeBounds=true;BitmapFactory.decodeByteArray(bytes,0,bytes.length,options);if(options.outWidth<1||options.outHeight<1||options.outWidth>4096||options.outHeight>4096)throw new IOException();options.inJustDecodeBounds=false;options.inSampleSize=1;while(Math.max(options.outWidth,options.outHeight)/options.inSampleSize>128)options.inSampleSize*=2;Bitmap icon=BitmapFactory.decodeByteArray(bytes,0,bytes.length,options);if(icon==null)throw new IOException();images.put(url,icon);post(()->{if(visible)changed.run();});}finally{c.disconnect();}}catch(Exception ignored){failed=true;}finally{synchronized(pending){pending.remove(url);if(failed){if(failedImages.size()>64)failedImages.clear();failedImages.put(url,SystemClock.elapsedRealtime());}}}});
+        synchronized(pending){if(pending.size()>=12||pending.contains(url)||failedImages.containsKey(url)&&SystemClock.elapsedRealtime()-failedImages.get(url)<900000)return;pending.add(url);}
+        icons.execute(()->{boolean failed=false;try{if(!visible||closed||!wantedImages.contains(url))return;HttpURLConnection c=(HttpURLConnection)new URL(url).openConnection();c.setConnectTimeout(3500);c.setReadTimeout(3500);c.setRequestProperty("User-Agent","QuietTV/1.0");try{if(c.getResponseCode()!=200)throw new IOException();byte[] bytes;try(InputStream in=c.getInputStream()){ByteArrayOutputStream b=new ByteArrayOutputStream();byte[] chunk=new byte[2048];int n;while((n=in.read(chunk))!=-1){if(b.size()+n>131072)throw new IOException();b.write(chunk,0,n);}bytes=b.toByteArray();}BitmapFactory.Options options=new BitmapFactory.Options();options.inJustDecodeBounds=true;BitmapFactory.decodeByteArray(bytes,0,bytes.length,options);if(options.outWidth<1||options.outHeight<1||options.outWidth>4096||options.outHeight>4096)throw new IOException();options.inJustDecodeBounds=false;options.inSampleSize=1;while(Math.max(options.outWidth,options.outHeight)/options.inSampleSize>128)options.inSampleSize*=2;Bitmap icon=BitmapFactory.decodeByteArray(bytes,0,bytes.length,options);if(icon==null)throw new IOException();images.put(url,icon);post(()->{if(visible)changed.run();});}finally{c.disconnect();}}catch(Exception ignored){failed=true;}finally{synchronized(pending){pending.remove(url);if(failed){if(failedImages.size()>64)failedImages.clear();failedImages.put(url,SystemClock.elapsedRealtime());}}post(()->{if(visible)loadIcons();});}});
     }
     void close(){closed=true;visible=false;handler.removeCallbacksAndMessages(null);worker.shutdownNow();resultWorker.shutdownNow();icons.shutdownNow();images.evictAll();}
 }

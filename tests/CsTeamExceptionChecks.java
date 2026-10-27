@@ -32,8 +32,8 @@ public final class CsTeamExceptionChecks {
         CsResults.Page page=CsResults.windowPage(results.toString(),0,now,policy,Collections.emptySet());ok(page.matches.size()==1&&page.matches.get(0).id==a.id,"past matches also use the same team-only rule");
         CsResults log=new CsResults();log.merge(page.matches,now);ok(CsResults.restore(log.cache(now),policy,now).count(now)==1,"FaZe results survive normal bounded cache restore");
         CsMatch major1=match(10,100,200,"current",now),major2=match(11,300,400,"current",now);CsFavorites favorites=new CsFavorites("[]");favorites.set(100,"Other A",true);favorites.set(300,"Other A",true);
-        List<CsMatch> rows=Arrays.asList(major1,major2,b);List<CsMatch> featured=favorites.prioritize(rows,policy.cards);
-        ok(featured.size()==2&&featured.get(0)==major1&&featured.get(1)==major2,"FaZe exception grants no bonus over normal favorites or two-card limit");
+        List<CsMatch> rows=Arrays.asList(major1,major2,b);List<CsMatch> featured=favorites.prioritize(rows,100);
+        ok(featured.size()==3&&featured.get(0)==major1&&featured.get(1)==major2&&featured.get(2)==b,"all live rows retain ordinary favorite order with no FaZe bonus");
         ok(policy.rank(b)==normal.rank(b),"FaZe has the same tournament ranking with or without eligibility exception");
         ok(rows.get(0)==major1,"normal selection does not mutate source records");
         ok(new CsFavorites("[]").prioritize(Arrays.asList(b,major1),2).get(0)==b,"FaZe retains its ordinary position without forced promotion or demotion");
